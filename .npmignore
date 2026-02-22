@@ -1,0 +1,14 @@
+src/
+docs/
+.github/
+.env
+.env.example
+.env.local
+tsconfig.json
+*.ts
+!dist/**
+*.tsbuildinfo
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+CHANGELOG.md
+.gitignore
