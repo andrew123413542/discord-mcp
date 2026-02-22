@@ -252,6 +252,12 @@ export async function smartFindRole(identifier: string): Promise<Role> {
   const cache = await getServerCache();
   const cleanId = cleanRoleIdentifier(identifier);
 
+  // Special case: @everyone role (its ID equals the guild ID)
+  if (cleanId.toLowerCase() === 'everyone') {
+    const everyoneRole = guild.roles.cache.get(guild.id);
+    if (everyoneRole) return everyoneRole;
+  }
+
   // Use cache for fuzzy matching
   const cachedRoles = cache.roles;
 

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-02-22
+
+### Fixed
+
+- `@everyone` role now resolves correctly — was previously excluded from the role cache, causing "not found" errors when targeting it in permission tools
+- Role cache now includes `@everyone` alongside all other roles
+
 ## [1.2.1] - 2026-02-22
 
 ### Fixed

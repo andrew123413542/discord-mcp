@@ -185,9 +185,8 @@ export async function refreshServerCache(): Promise<ServerCache> {
     };
   });
 
-  // Build role cache (exclude @everyone)
+  // Build role cache (include @everyone so it can be targeted in permission tools)
   const roles = [...guild.roles.cache.values()]
-    .filter(r => r.id !== guild.id)
     .sort((a, b) => b.position - a.position)
     .map(r => ({
       id: r.id,
