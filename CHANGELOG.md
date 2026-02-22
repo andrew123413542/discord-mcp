@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-22
+
+### Added
+
+- Multi-client support in `init` wizard — auto-detects and configures:
+  - Claude Code (`.mcp.json`)
+  - Claude Desktop (`claude_desktop_config.json`)
+  - Cursor (`~/.cursor/mcp.json`)
+  - Windsurf (`~/.codeium/windsurf/mcp_config.json`)
+- "All detected" option to configure every installed client at once
+- "Skip" option with manual config output and file path reference
+- Client-specific next steps shown after setup
+
 ## [1.1.0] - 2026-02-22
 
 ### Added

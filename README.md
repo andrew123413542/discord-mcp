@@ -46,9 +46,30 @@ It will:
 2. Validate your bot token live
 3. Auto-generate the invite URL with all required permissions
 4. Let you pick which server to manage
-5. Write your `.mcp.json` automatically
+5. Auto-detect your installed MCP clients and write the config for you
 
-Then open Claude Code and type `/mcp` to connect. Done.
+### Works With Every MCP Client
+
+The wizard auto-detects which clients you have installed:
+
+```
+  Detected MCP clients:
+
+  ● Claude Code      .mcp.json
+  ● Claude Desktop   ~/Library/Application Support/Claude/claude_desktop_config.json
+  ● Cursor           ~/.cursor/mcp.json
+  ○ Windsurf         (not detected)
+
+  ? Which client(s) to configure?
+  1. Claude Code (detected)
+  2. Claude Desktop (detected)
+  3. Cursor (detected)
+  4. Windsurf (not found)
+  5. All detected (3 clients)
+  6. Skip (show config to copy manually)
+```
+
+Select one, multiple, or "All detected" to configure everything at once.
 
 ### Verify Your Setup
 
@@ -132,9 +153,9 @@ If you prefer to configure things manually instead of using the wizard:
 
 Follow the [Bot Setup Guide](docs/bot-setup-guide.md) to create a bot in the Discord Developer Portal and get your token.
 
-### 2. Add to `.mcp.json`
+### 2. Add to your MCP config
 
-Create or edit `.mcp.json` in your project root:
+Add the following `discord` entry to your client's config file:
 
 ```json
 {
@@ -151,9 +172,18 @@ Create or edit `.mcp.json` in your project root:
 }
 ```
 
-### 3. Connect in Claude Code
+| Client | Config file location |
+|--------|---------------------|
+| **Claude Code** | `.mcp.json` in your project root |
+| **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows) |
+| **Cursor** | `~/.cursor/mcp.json` |
+| **Windsurf** | `~/.codeium/windsurf/mcp_config.json` |
 
-Type `/mcp` in Claude Code to connect the server.
+### 3. Connect
+
+- **Claude Code:** Type `/mcp` to connect
+- **Claude Desktop:** Restart the app
+- **Cursor / Windsurf:** Reload the window
 
 </details>
 
@@ -182,7 +212,7 @@ $ npx @quadslab.io/discord-mcp [command]
 
 | Command | Description |
 |---------|-------------|
-| `init` | Interactive setup wizard — creates bot, validates token, writes `.mcp.json` |
+| `init` | Interactive setup wizard — creates bot, validates token, auto-configures Claude Code / Desktop / Cursor / Windsurf |
 | `check` | Health check — verifies token, server access, and permission audit |
 | `start` | Start the MCP server (default when no command given) |
 | `help` | Show help message |

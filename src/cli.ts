@@ -9,6 +9,7 @@
  */
 
 import readline from 'readline';
+import os from 'os';
 import { Client, GatewayIntentBits, PermissionFlagsBits, Guild } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
@@ -417,52 +418,163 @@ async function runInit(): Promise<void> {
 
     client.destroy();
 
-    // ── Step 6: Write config ──
-    stepHeader(6, TOTAL_STEPS, 'Configure Claude Code');
+    // ── Step 6: Configure MCP clients ──
+    stepHeader(6, TOTAL_STEPS, 'Configure MCP Clients');
 
-    const mcpJsonPath = path.join(process.cwd(), '.mcp.json');
-    const newConfig = {
-      mcpServers: {
-        discord: {
-          command: 'npx',
-          args: ['-y', '@quadslab.io/discord-mcp'],
-          env: {
-            DISCORD_TOKEN: token,
-            DISCORD_GUILD_ID: selectedGuild.id,
-          },
-        },
+    // Server config shared by all clients
+    const serverEntry = {
+      command: 'npx',
+      args: ['-y', '@quadslab.io/discord-mcp'],
+      env: {
+        DISCORD_TOKEN: token,
+        DISCORD_GUILD_ID: selectedGuild.id,
       },
     };
 
-    let wrote = false;
+    // Define all supported clients and their config paths
+    interface McpClient {
+      name: string;
+      label: string;
+      configPath: string;
+      detected: boolean;
+      dirExists: boolean;
+    }
 
-    if (fs.existsSync(mcpJsonPath)) {
-      const merge = await promptConfirm(rl, '.mcp.json already exists. Merge discord config?');
-      if (merge) {
-        const existing = JSON.parse(fs.readFileSync(mcpJsonPath, 'utf-8'));
-        existing.mcpServers = existing.mcpServers || {};
-        existing.mcpServers.discord = newConfig.mcpServers.discord;
-        fs.writeFileSync(mcpJsonPath, JSON.stringify(existing, null, 2) + '\n');
-        success('Merged into existing .mcp.json');
-        wrote = true;
+    const home = os.homedir();
+    const platform = process.platform;
+
+    const claudeDesktopPath = platform === 'win32'
+      ? path.join(process.env['APPDATA'] || '', 'Claude', 'claude_desktop_config.json')
+      : path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
+
+    const cursorPath = path.join(home, '.cursor', 'mcp.json');
+
+    const windsurfPath = platform === 'win32'
+      ? path.join(home, '.codeium', 'windsurf', 'mcp_config.json')
+      : path.join(home, '.codeium', 'windsurf', 'mcp_config.json');
+
+    const clients: McpClient[] = [
+      {
+        name: 'claude-code',
+        label: 'Claude Code',
+        configPath: path.join(process.cwd(), '.mcp.json'),
+        detected: true, // Always available (project-scoped)
+        dirExists: true,
+      },
+      {
+        name: 'claude-desktop',
+        label: 'Claude Desktop',
+        configPath: claudeDesktopPath,
+        detected: fs.existsSync(path.dirname(claudeDesktopPath)),
+        dirExists: fs.existsSync(path.dirname(claudeDesktopPath)),
+      },
+      {
+        name: 'cursor',
+        label: 'Cursor',
+        configPath: cursorPath,
+        detected: fs.existsSync(path.dirname(cursorPath)),
+        dirExists: fs.existsSync(path.dirname(cursorPath)),
+      },
+      {
+        name: 'windsurf',
+        label: 'Windsurf',
+        configPath: windsurfPath,
+        detected: fs.existsSync(path.dirname(windsurfPath)),
+        dirExists: fs.existsSync(path.dirname(windsurfPath)),
+      },
+    ];
+
+    const detected = clients.filter(cl => cl.detected);
+    const notDetected = clients.filter(cl => !cl.detected);
+
+    // Show detected clients
+    info('Detected MCP clients:');
+    ln('');
+    for (const cl of detected) {
+      ln(`  ${c.greenBright}●${c.reset} ${c.bold}${cl.label}${c.reset} ${c.dim}${cl.configPath}${c.reset}`);
+    }
+    for (const cl of notDetected) {
+      ln(`  ${c.gray}○ ${cl.label}${c.reset} ${c.dim}(not detected)${c.reset}`);
+    }
+    ln('');
+
+    // Let user pick which to configure
+    const clientItems = clients.map(cl => {
+      const tag = cl.detected ? `${c.greenBright}detected${c.reset}` : `${c.dim}not found${c.reset}`;
+      return `${c.bold}${cl.label}${c.reset} ${c.gray}(${tag}${c.gray})${c.reset}`;
+    });
+    clientItems.push(`${c.bold}All detected${c.reset} ${c.dim}(${detected.length} clients)${c.reset}`);
+    clientItems.push(`${c.bold}Skip${c.reset} ${c.dim}(show config to copy manually)${c.reset}`);
+
+    const clientIdx = await promptSelect(rl, clientItems, 'Which client(s) to configure?');
+
+    let selectedClients: McpClient[] = [];
+    const skipConfig = clientIdx === clientItems.length - 1;
+    const allDetected = clientIdx === clientItems.length - 2;
+
+    if (skipConfig) {
+      // Show manual config
+      selectedClients = [];
+    } else if (allDetected) {
+      selectedClients = detected;
+    } else if (clientIdx >= 0 && clientIdx < clients.length) {
+      selectedClients = [clients[clientIdx]!];
+    }
+
+    // Write configs
+    let configured = 0;
+
+    for (const cl of selectedClients) {
+      const configPath = cl.configPath;
+      const configDir = path.dirname(configPath);
+
+      // Ensure directory exists
+      if (!fs.existsSync(configDir)) {
+        try {
+          fs.mkdirSync(configDir, { recursive: true });
+        } catch {
+          error(`Could not create directory: ${configDir}`);
+          continue;
+        }
       }
-    } else {
-      const write = await promptConfirm(rl, 'Create .mcp.json in current directory?');
-      if (write) {
-        fs.writeFileSync(mcpJsonPath, JSON.stringify(newConfig, null, 2) + '\n');
-        success('Created .mcp.json');
-        wrote = true;
+
+      const newConfig = { mcpServers: { discord: serverEntry } };
+
+      try {
+        if (fs.existsSync(configPath)) {
+          const existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+          existing.mcpServers = existing.mcpServers || {};
+          existing.mcpServers.discord = serverEntry;
+          fs.writeFileSync(configPath, JSON.stringify(existing, null, 2) + '\n');
+          success(`${cl.label} — merged into existing config`);
+        } else {
+          fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2) + '\n');
+          success(`${cl.label} — created ${path.basename(configPath)}`);
+        }
+        info(`  ${c.dim}${configPath}${c.reset}`);
+        configured++;
+      } catch (err: any) {
+        error(`${cl.label} — ${err.message}`);
       }
     }
 
-    if (!wrote) {
+    if (configured === 0) {
       ln('');
-      info('Add this to your .mcp.json manually:');
+      info('Add this to your MCP config file:');
       ln('');
-      const json = JSON.stringify(newConfig, null, 2);
+      const json = JSON.stringify({ mcpServers: { discord: serverEntry } }, null, 2);
       json.split('\n').forEach(line => {
         ln(`  ${c.dim}${line}${c.reset}`);
       });
+      ln('');
+      box([
+        `${c.bold}Config file locations:${c.reset}`,
+        ``,
+        `${c.cyanBright}Claude Code${c.reset}    ${c.dim}.mcp.json (in project root)${c.reset}`,
+        `${c.cyanBright}Claude Desktop${c.reset} ${c.dim}${claudeDesktopPath}${c.reset}`,
+        `${c.cyanBright}Cursor${c.reset}         ${c.dim}~/.cursor/mcp.json${c.reset}`,
+        `${c.cyanBright}Windsurf${c.reset}       ${c.dim}~/.codeium/windsurf/mcp_config.json${c.reset}`,
+      ], c.blue);
     }
 
     // ── Done ──
@@ -471,15 +583,30 @@ async function runInit(): Promise<void> {
     ln('');
     ln(`  ${c.greenBright}${c.bold}Setup complete!${c.reset}  ${c.gray}🎉${c.reset}`);
     ln('');
-    box([
-      `${c.bold}Next steps:${c.reset}`,
-      ``,
-      `${c.cyanBright}1.${c.reset} Open Claude Code in any project`,
-      `${c.cyanBright}2.${c.reset} Type ${c.bold}/mcp${c.reset} to connect the Discord server`,
-      `${c.cyanBright}3.${c.reset} Ask Claude to manage your server!`,
-      ``,
-      `${c.dim}Try: "List all channels in my Discord server"${c.reset}`,
-    ], c.green);
+
+    // Tailor next steps to what was configured
+    const nextSteps: string[] = [`${c.bold}Next steps:${c.reset}`, ``];
+
+    if (selectedClients.some(cl => cl.name === 'claude-code')) {
+      nextSteps.push(`${c.cyanBright}Claude Code:${c.reset}  Type ${c.bold}/mcp${c.reset} to connect`);
+    }
+    if (selectedClients.some(cl => cl.name === 'claude-desktop')) {
+      nextSteps.push(`${c.cyanBright}Claude Desktop:${c.reset} Restart the app to load the server`);
+    }
+    if (selectedClients.some(cl => cl.name === 'cursor')) {
+      nextSteps.push(`${c.cyanBright}Cursor:${c.reset}  Reload window or restart to connect`);
+    }
+    if (selectedClients.some(cl => cl.name === 'windsurf')) {
+      nextSteps.push(`${c.cyanBright}Windsurf:${c.reset} Reload window or restart to connect`);
+    }
+    if (nextSteps.length === 2) {
+      nextSteps.push(`Add the config to your MCP client and restart it`);
+    }
+
+    nextSteps.push(``);
+    nextSteps.push(`${c.dim}Try: "List all channels in my Discord server"${c.reset}`);
+
+    box(nextSteps, c.green);
     ln('');
     ln(`  ${c.gray}Docs:${c.reset}  ${c.underline}${c.blueBright}https://github.com/HardHeadHackerHead/discord-mcp${c.reset}`);
     ln(`  ${c.gray}Help:${c.reset}  ${c.bold}discord-mcp check${c.reset} ${c.dim}— verify permissions${c.reset}`);
