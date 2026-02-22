@@ -442,6 +442,30 @@ async function runInit(): Promise<void> {
 
     const home = os.homedir();
     const platform = process.platform;
+    const cwd = process.cwd();
+
+    // Detect if cwd is a non-project directory (Desktop, Downloads, home root, etc.)
+    const cwdLower = cwd.toLowerCase().replace(/\\/g, '/');
+    const homeLower = home.toLowerCase().replace(/\\/g, '/');
+    const suspiciousDirs = ['desktop', 'downloads', 'documents', 'tmp', 'temp'];
+    const isSuspiciousCwd =
+      cwdLower === homeLower ||
+      suspiciousDirs.some(d => cwdLower === `${homeLower}/${d}`) ||
+      cwdLower.endsWith('/system32');
+
+    // Determine Claude Code config path
+    // If cwd looks like a project dir, use project-scoped .mcp.json
+    // Otherwise, use global ~/.claude.json
+    let claudeCodePath: string;
+    let claudeCodeNote = '';
+
+    if (isSuspiciousCwd) {
+      // Use global config instead of writing .mcp.json in Desktop/Downloads/etc.
+      claudeCodePath = path.join(home, '.claude.json');
+      claudeCodeNote = ` ${c.yellowBright}(global — cwd is ${path.basename(cwd)})${c.reset}`;
+    } else {
+      claudeCodePath = path.join(cwd, '.mcp.json');
+    }
 
     const claudeDesktopPath = platform === 'win32'
       ? path.join(process.env['APPDATA'] || '', 'Claude', 'claude_desktop_config.json')
@@ -457,8 +481,8 @@ async function runInit(): Promise<void> {
       {
         name: 'claude-code',
         label: 'Claude Code',
-        configPath: path.join(process.cwd(), '.mcp.json'),
-        detected: true, // Always available (project-scoped)
+        configPath: claudeCodePath,
+        detected: true, // Always available
         dirExists: true,
       },
       {
@@ -487,11 +511,19 @@ async function runInit(): Promise<void> {
     const detected = clients.filter(cl => cl.detected);
     const notDetected = clients.filter(cl => !cl.detected);
 
+    // Warn if cwd is suspicious
+    if (isSuspiciousCwd) {
+      warn(`Current directory is ${c.bold}${path.basename(cwd)}${c.reset}${c.yellow} — not a project folder${c.reset}`);
+      info(`Claude Code config will be written to ${c.bold}~/.claude.json${c.reset} (global, works everywhere)`);
+      ln('');
+    }
+
     // Show detected clients
     info('Detected MCP clients:');
     ln('');
     for (const cl of detected) {
-      ln(`  ${c.greenBright}●${c.reset} ${c.bold}${cl.label}${c.reset} ${c.dim}${cl.configPath}${c.reset}`);
+      const note = cl.name === 'claude-code' ? claudeCodeNote : '';
+      ln(`  ${c.greenBright}●${c.reset} ${c.bold}${cl.label}${c.reset}${note} ${c.dim}${cl.configPath}${c.reset}`);
     }
     for (const cl of notDetected) {
       ln(`  ${c.gray}○ ${cl.label}${c.reset} ${c.dim}(not detected)${c.reset}`);
