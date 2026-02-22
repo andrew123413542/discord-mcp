@@ -51,6 +51,54 @@ You will need a `.env` file with your Discord bot token and guild ID. See `.env.
 
 ---
 
+## Project Structure
+
+```
+src/
+├── cli.ts               # CLI — init wizard, health check, server start
+├── mcp-server.ts        # MCP server entry — validates env, exports main()
+├── index.ts             # Tool/resource registration and MCP request routing
+├── discord-client.ts    # Discord.js client — intents, caching, rate limit retry
+└── tools/
+    ├── index.ts         # Tool registry — routes calls to category handlers
+    ├── utils.ts         # Fuzzy matching for channels, roles, members
+    ├── guild.ts         # Server info (2 tools)
+    ├── roles.ts         # Role management (9 tools)
+    ├── channels.ts      # Channel management (16 tools)
+    ├── members.ts       # Member management (12 tools)
+    ├── messages.ts      # Messaging (13 tools)
+    ├── reactions.ts     # Reactions (1 tool)
+    ├── server.ts        # Server admin (13 tools)
+    ├── threads.ts       # Thread management (7 tools)
+    ├── forums.ts        # Forum channels (5 tools)
+    ├── emojis.ts        # Emoji & stickers (7 tools)
+    ├── webhooks.ts      # Webhooks (4 tools)
+    ├── events.ts        # Scheduled events (4 tools)
+    ├── stage.ts         # Stage instances (3 tools)
+    └── automod.ts       # Auto-moderation (4 tools)
+```
+
+---
+
+## CLI Development
+
+The CLI (`src/cli.ts`) provides the `init` wizard and `check` health check. To test changes:
+
+```bash
+# Test the init wizard
+npx tsx src/cli.ts init
+
+# Test the health check
+npx tsx src/cli.ts check
+
+# Test the help output
+npx tsx src/cli.ts help
+```
+
+The CLI uses zero external dependencies — just Node's built-in `readline` and ANSI escape codes for colors.
+
+---
+
 ## Adding New Tools
 
 Every tool follows a consistent pattern across the codebase. To add a new tool:
@@ -117,9 +165,10 @@ If you are creating an entirely new category (not adding to an existing one), im
 
 When adding or modifying tools, update the following:
 
-1. **`docs/discord-mcp-server.md`** -- add or update the tool entry in the appropriate category section.
-2. **`README.md`** -- update the tool count in the summary table and add the tool to the appropriate category table.
-3. If you add a new category, add a new section in both files and update the total tool count.
+1. **`docs/discord-mcp-server.md`** — add or update the tool entry in the appropriate category section.
+2. **`README.md`** — update the tool count in the summary table and add the tool to the appropriate category table.
+3. **`CHANGELOG.md`** — add an entry under a new `## [Unreleased]` section at the top.
+4. If you add a new category, add a new section in both docs files and update the total tool count.
 
 ---
 

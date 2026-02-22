@@ -6,8 +6,12 @@ import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import fs from 'fs';
 import { allTools, executeTool } from './tools/index.js';
 import { getServerSummary, getServerCache, withRetry } from './discord-client.js';
+
+// Read version from package.json
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
 
 /**
  * Create and configure the MCP server for Discord management
@@ -16,7 +20,7 @@ export function createMCPServer(): Server {
   const server = new Server(
     {
       name: 'discord-server',
-      version: '1.0.0',
+      version: pkg.version,
     },
     {
       capabilities: {
@@ -153,5 +157,5 @@ export async function startMCPServer(server: Server): Promise<void> {
   await server.connect(transport);
 
   // Log to stderr since stdout is used for MCP communication
-  console.error('Discord MCP server started');
+  console.error(`Discord MCP server v${pkg.version} started`);
 }

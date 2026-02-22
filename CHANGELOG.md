@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-22
+
+### Fixed
+
+- MCP server version was hardcoded to `1.0.0` — now reads dynamically from `package.json`
+- CLI logo showed hardcoded `v1.0` — removed (version shown via `--version` flag instead)
+- Dead code: Windsurf path ternary had identical branches
+- Missing `Manage Auto Moderation` permission in bot setup guide
+- `CHANGELOG.md` was excluded from npm package — now included
+- Duplicate startup log messages consolidated
+
+### Improved
+
+- `docs/discord-mcp-server.md` — rewritten setup section with CLI-first workflow, multi-client config table
+- `docs/bot-setup-guide.md` — Step 6 now leads with `npx init` wizard, manual setup as fallback
+- `CONTRIBUTING.md` — added project structure diagram, CLI development section, and CHANGELOG to docs checklist
+- `.github/PULL_REQUEST_TEMPLATE.md` — added CLI testing and CHANGELOG checklist items
+- `.env.example` — documented `BOT_TOKEN` fallback
+- `package.json` — added `exports` map for ESM consumers, updated description to mention all supported clients
+- README architecture diagram updated with accurate file descriptions
+
 ## [1.2.3] - 2026-02-22
 
 ### Fixed

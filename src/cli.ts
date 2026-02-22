@@ -56,7 +56,7 @@ ${c.cyanBright}${c.bold}   / __ \\__  ______ _____/ /____/ /   ____ _/ /_      $
 ${c.cyan}  / / / / / / / __ \`/ __  / ___/ /   / __ \`/ __ \\     ${c.reset}
 ${c.cyan} / /_/ / /_/ / /_/ / /_/ (__  ) /___/ /_/ / /_/ /     ${c.reset}
 ${c.magenta} \\___\\_\\__,_/\\__,_/\\__,_/____/_____/\\__,_/_.___/      ${c.reset}
-${c.magentaBright}${c.bold}                                          .io ${c.reset}${c.dim}${c.gray}v1.0${c.reset}
+${c.magentaBright}${c.bold}                                          .io${c.reset}
 `;
 
 const LOGO_MINI = `${c.cyanBright}${c.bold}QuadsLab${c.magentaBright}.io${c.reset}`;
@@ -473,9 +473,7 @@ async function runInit(): Promise<void> {
 
     const cursorPath = path.join(home, '.cursor', 'mcp.json');
 
-    const windsurfPath = platform === 'win32'
-      ? path.join(home, '.codeium', 'windsurf', 'mcp_config.json')
-      : path.join(home, '.codeium', 'windsurf', 'mcp_config.json');
+    const windsurfPath = path.join(home, '.codeium', 'windsurf', 'mcp_config.json');
 
     const clients: McpClient[] = [
       {

@@ -2,13 +2,47 @@
 
 A Model Context Protocol (MCP) server that provides full Discord server administration through Claude Code. Built with Discord.js v14 and the MCP SDK, it exposes 99 tools covering every aspect of server management — from sending messages and managing roles to configuring auto-moderation rules, forums, stages, and scheduled events.
 
-## Setup
+## Quick Start
 
-### Requirements
+```bash
+npx @quadslab.io/discord-mcp init
+```
 
-- Node.js 18+
-- A Discord bot token with appropriate permissions
-- The bot must be invited to the target server with the necessary OAuth2 scopes (`bot`, `applications.commands`)
+The interactive wizard walks you through bot creation, token validation, and configures your MCP client automatically. It supports Claude Code, Claude Desktop, Cursor, and Windsurf.
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `npx @quadslab.io/discord-mcp init` | Interactive setup wizard |
+| `npx @quadslab.io/discord-mcp check` | Health check and permission audit |
+| `npx @quadslab.io/discord-mcp` | Start the MCP server (default) |
+
+### Manual Configuration
+
+If you prefer manual setup, add this to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "discord": {
+      "command": "npx",
+      "args": ["-y", "@quadslab.io/discord-mcp"],
+      "env": {
+        "DISCORD_TOKEN": "your-bot-token",
+        "DISCORD_GUILD_ID": "your-server-id"
+      }
+    }
+  }
+}
+```
+
+| Client | Config file |
+|--------|------------|
+| Claude Code | `.mcp.json` in project root |
+| Claude Desktop | `claude_desktop_config.json` in AppData/Application Support |
+| Cursor | `~/.cursor/mcp.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 
 ### Environment Variables
 
@@ -17,47 +51,16 @@ A Model Context Protocol (MCP) server that provides full Discord server administ
 | `DISCORD_TOKEN` | Yes | Your Discord bot token (also accepts `BOT_TOKEN` as fallback) |
 | `DISCORD_GUILD_ID` | Yes | The ID of the Discord server to manage |
 
-These are loaded from a `.env` file via `dotenv`.
-
-### Running
-
-```bash
-# Build
-npm run build
-
-# Start standalone
-npm run mcp:start
-# or
-node dist/mcp-server.js
-```
-
-### Claude Code Integration
-
-The server is configured in `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "discord-server": {
-      "command": "node",
-      "args": ["dist/mcp-server.js"],
-      "cwd": "/path/to/QuadsLabBot"
-    }
-  }
-}
-```
-
-Reconnect with `/mcp` in Claude Code after any changes.
-
 ---
 
 ## Architecture
 
 ```
-src/mcp/
-  mcp-server.ts          # Entry point — validates env, initializes client, starts server
+src/
+  cli.ts                 # CLI — init wizard, health check, server start
+  mcp-server.ts          # MCP server entry — validates env, initializes client, exports main()
   index.ts               # MCP server setup — registers tools, resources, and request handlers
-  discord-client.ts      # Discord.js client — intents, caching, connection management
+  discord-client.ts      # Discord.js client — intents, caching, rate limit retry
   tools/
     index.ts             # Tool registry — routes tool calls to category handlers
     utils.ts             # Fuzzy matching — smart name resolution for channels, roles, members

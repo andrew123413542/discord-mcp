@@ -7,6 +7,7 @@ What does this PR do?
 - [ ] Bug fix
 - [ ] New tool(s)
 - [ ] Enhancement to existing tool(s)
+- [ ] CLI changes (init wizard, health check)
 - [ ] Documentation update
 - [ ] Other (describe below)
 
@@ -17,4 +18,6 @@ What does this PR do?
 - [ ] Tool count is updated in README.md summary table
 - [ ] Fuzzy matching is used for name parameters
 - [ ] All tools return structured JSON responses
+- [ ] CHANGELOG.md updated with a new entry
+- [ ] CLI changes tested manually (`npx tsx src/cli.ts init` and `check`)
 - [ ] Tested against a real Discord server

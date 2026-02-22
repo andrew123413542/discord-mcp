@@ -77,6 +77,7 @@ Toggle all three intents **on**, then click **Save Changes** at the bottom of th
 - Kick Members
 - Ban Members
 - Moderate Members
+- Manage Auto Moderation
 
 4. After selecting all permissions, a **Generated URL** will appear at the bottom of the page. Click **Copy**.
 5. Paste the URL into your browser's address bar and press Enter.
@@ -102,23 +103,36 @@ This value is your `DISCORD_GUILD_ID`. Save it alongside your bot token.
 
 ## 6. Configure the MCP Server
 
-Create a `.env` file in the project root with the following contents:
-
-```env
-DISCORD_TOKEN=your-bot-token-here
-DISCORD_GUILD_ID=your-server-id-here
-```
-
-Replace `your-bot-token-here` with the bot token you copied in Step 2, and `your-server-id-here` with the server ID you copied in Step 5.
-
-Then build and run the server:
+The easiest way to configure everything is with the setup wizard:
 
 ```bash
-npm run build
-npm start
+npx @quadslab.io/discord-mcp init
 ```
 
-Your bot should come online in your Discord server. If it does not, verify that your token and guild ID are correct, and that the bot was properly invited to the server in Step 4.
+It will ask for your bot token and guild ID, then write the config for your MCP client (Claude Code, Claude Desktop, Cursor, or Windsurf) automatically.
+
+### Manual alternative
+
+If you prefer to configure manually, add this to your MCP client's config file:
+
+```json
+{
+  "mcpServers": {
+    "discord": {
+      "command": "npx",
+      "args": ["-y", "@quadslab.io/discord-mcp"],
+      "env": {
+        "DISCORD_TOKEN": "your-bot-token-here",
+        "DISCORD_GUILD_ID": "your-server-id-here"
+      }
+    }
+  }
+}
+```
+
+Replace the values with the token from Step 2 and the server ID from Step 5.
+
+See the [README](../README.md) for config file locations per client.
 
 ---
 

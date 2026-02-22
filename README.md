@@ -492,9 +492,9 @@ These privileged intents must be enabled in the [Discord Developer Portal](https
 │   └── bot-setup-guide.md       # Step-by-step bot creation guide
 └── src/
     ├── cli.ts                   # CLI — init wizard, health check, server start
-    ├── mcp-server.ts            # MCP server — validates env, initializes client
-    ├── index.ts                 # Tool/resource registration and request routing
-    ├── discord-client.ts        # Discord.js client — intents, caching, connection
+    ├── mcp-server.ts            # MCP server entry — validates env, exports main()
+    ├── index.ts                 # Tool/resource registration and MCP request routing
+    ├── discord-client.ts        # Discord.js client — intents, caching, rate limit retry
     └── tools/
         ├── index.ts             # Tool registry — routes calls to category handlers
         ├── utils.ts             # Fuzzy matching for channels, roles, members

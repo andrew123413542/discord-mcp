@@ -1,9 +1,14 @@
 {
   "name": "@quadslab.io/discord-mcp",
-  "version": "1.2.3",
-  "description": "Full Discord server administration through Claude Code via MCP. 99 tools across 14 categories covering roles, channels, members, messages, moderation, forums, stages, webhooks, events, and more.",
+  "version": "1.3.0",
+  "description": "Manage your entire Discord server from Claude Code, Claude Desktop, Cursor, or Windsurf via MCP. 99 admin tools across 14 categories. Interactive setup wizard included.",
   "type": "module",
-  "main": "dist/mcp-server.js",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./cli": "./dist/cli.js",
+    "./server": "./dist/mcp-server.js"
+  },
   "bin": {
     "discord-mcp": "dist/cli.js"
   },
