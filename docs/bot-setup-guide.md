@@ -2,6 +2,14 @@
 
 This guide walks you through creating a Discord bot from scratch, obtaining a bot token, and inviting the bot to your server. No prior experience with the Discord Developer Portal is required.
 
+> **Recommended:** The interactive setup wizard handles all of this automatically:
+>
+> ```bash
+> npx @quadslab.io/discord-mcp init
+> ```
+>
+> The steps below are for manual setup or if you need more detail on a specific step.
+
 ---
 
 ## 1. Create a Discord Application

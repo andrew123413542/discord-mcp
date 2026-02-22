@@ -21,7 +21,7 @@ dotenv.config();
 import { initializeClient, destroyClient, refreshServerCache } from './discord-client.js';
 import { createMCPServer, startMCPServer } from './index.js';
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   // Validate required environment variables
   // Support both DISCORD_TOKEN and BOT_TOKEN (fallback)
   const token = process.env['DISCORD_TOKEN'] || process.env['BOT_TOKEN'];
@@ -76,4 +76,8 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+// Auto-run only when executed directly (not imported by cli.ts)
+const isDirectRun = process.argv[1]?.replace(/\\/g, '/').endsWith('mcp-server.js');
+if (isDirectRun) {
+  main();
+}

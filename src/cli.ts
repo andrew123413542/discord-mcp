@@ -1,0 +1,718 @@
+#!/usr/bin/env node
+/**
+ * CLI entry point for @quadslab.io/discord-mcp
+ *
+ * Subcommands:
+ *   init  - Interactive setup wizard
+ *   check - Health check and permission audit
+ *   start - Start the MCP server (default)
+ */
+
+import readline from 'readline';
+import { Client, GatewayIntentBits, PermissionFlagsBits, Guild } from 'discord.js';
+import fs from 'fs';
+import path from 'path';
+
+// ── ANSI Helpers ─────────────────────────────────────────────────────
+
+const isColorSupported = process.stderr.isTTY && !process.env['NO_COLOR'];
+
+const c = {
+  reset:     isColorSupported ? '\x1b[0m' : '',
+  bold:      isColorSupported ? '\x1b[1m' : '',
+  dim:       isColorSupported ? '\x1b[2m' : '',
+  italic:    isColorSupported ? '\x1b[3m' : '',
+  underline: isColorSupported ? '\x1b[4m' : '',
+  // Brand colors
+  cyan:      isColorSupported ? '\x1b[36m' : '',
+  cyanBright:isColorSupported ? '\x1b[96m' : '',
+  magenta:   isColorSupported ? '\x1b[35m' : '',
+  magentaBright: isColorSupported ? '\x1b[95m' : '',
+  green:     isColorSupported ? '\x1b[32m' : '',
+  greenBright: isColorSupported ? '\x1b[92m' : '',
+  red:       isColorSupported ? '\x1b[31m' : '',
+  redBright: isColorSupported ? '\x1b[91m' : '',
+  yellow:    isColorSupported ? '\x1b[33m' : '',
+  yellowBright: isColorSupported ? '\x1b[93m' : '',
+  blue:      isColorSupported ? '\x1b[34m' : '',
+  blueBright:isColorSupported ? '\x1b[94m' : '',
+  white:     isColorSupported ? '\x1b[37m' : '',
+  whiteBright: isColorSupported ? '\x1b[97m' : '',
+  gray:      isColorSupported ? '\x1b[90m' : '',
+  bgCyan:    isColorSupported ? '\x1b[46m' : '',
+  bgMagenta: isColorSupported ? '\x1b[45m' : '',
+};
+
+// Stderr-only output (keeps stdout clean for MCP)
+const out = (...args: string[]) => process.stderr.write(args.join(''));
+const ln = (...args: string[]) => process.stderr.write(args.join('') + '\n');
+
+// ── Brand Art ────────────────────────────────────────────────────────
+
+const LOGO = `
+${c.cyanBright}${c.bold}    ____                  __     __          __       ${c.reset}
+${c.cyanBright}${c.bold}   / __ \\__  ______ _____/ /____/ /   ____ _/ /_      ${c.reset}
+${c.cyan}  / / / / / / / __ \`/ __  / ___/ /   / __ \`/ __ \\     ${c.reset}
+${c.cyan} / /_/ / /_/ / /_/ / /_/ (__  ) /___/ /_/ / /_/ /     ${c.reset}
+${c.magenta} \\___\\_\\__,_/\\__,_/\\__,_/____/_____/\\__,_/_.___/      ${c.reset}
+${c.magentaBright}${c.bold}                                          .io ${c.reset}${c.dim}${c.gray}v1.0${c.reset}
+`;
+
+const LOGO_MINI = `${c.cyanBright}${c.bold}QuadsLab${c.magentaBright}.io${c.reset}`;
+
+const DISCORD_MCP_BADGE = `${c.gray}[${c.reset}${c.blueBright}discord-mcp${c.reset}${c.gray}]${c.reset}`;
+
+// ── UI Components ────────────────────────────────────────────────────
+
+function box(lines: string[], borderColor: string = c.gray): void {
+  const stripped = lines.map(l => l.replace(/\x1b\[[0-9;]*m/g, ''));
+  const maxLen = Math.max(...stripped.map(l => l.length));
+  const w = maxLen + 2;
+
+  ln(`${borderColor}  ┌${'─'.repeat(w)}┐${c.reset}`);
+  lines.forEach((line, i) => {
+    const pad = maxLen - stripped[i]!.length;
+    ln(`${borderColor}  │${c.reset} ${line}${' '.repeat(pad)} ${borderColor}│${c.reset}`);
+  });
+  ln(`${borderColor}  └${'─'.repeat(w)}┘${c.reset}`);
+}
+
+function divider(): void {
+  ln(`${c.gray}  ${'─'.repeat(52)}${c.reset}`);
+}
+
+function stepHeader(current: number, total: number, title: string): void {
+  ln('');
+  // Progress dots
+  const dots = Array.from({ length: total }, (_, i) => {
+    if (i < current - 1) return `${c.greenBright}●${c.reset}`;
+    if (i === current - 1) return `${c.cyanBright}●${c.reset}`;
+    return `${c.gray}○${c.reset}`;
+  }).join(' ');
+
+  ln(`  ${dots}  ${c.gray}(${current}/${total})${c.reset}`);
+  ln(`  ${c.bold}${c.whiteBright}${title}${c.reset}`);
+  ln('');
+}
+
+function success(msg: string): void {
+  ln(`  ${c.greenBright}✔${c.reset} ${msg}`);
+}
+
+function error(msg: string): void {
+  ln(`  ${c.redBright}✖${c.reset} ${c.red}${msg}${c.reset}`);
+}
+
+function warn(msg: string): void {
+  ln(`  ${c.yellowBright}⚠${c.reset} ${c.yellow}${msg}${c.reset}`);
+}
+
+function info(msg: string): void {
+  ln(`  ${c.gray}${msg}${c.reset}`);
+}
+
+function bullet(msg: string): void {
+  ln(`  ${c.cyan}›${c.reset} ${msg}`);
+}
+
+function link(url: string): void {
+  ln(`  ${c.underline}${c.blueBright}${url}${c.reset}`);
+}
+
+// ── Spinner ──────────────────────────────────────────────────────────
+
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+function createSpinner(message: string): { stop: (finalMsg?: string) => void } {
+  let i = 0;
+  const interval = setInterval(() => {
+    const frame = SPINNER_FRAMES[i % SPINNER_FRAMES.length];
+    out(`\r  ${c.cyanBright}${frame}${c.reset} ${c.dim}${message}${c.reset}  `);
+    i++;
+  }, 80);
+
+  return {
+    stop(finalMsg?: string) {
+      clearInterval(interval);
+      out('\r' + ' '.repeat(message.length + 10) + '\r');
+      if (finalMsg) ln(finalMsg);
+    },
+  };
+}
+
+// ── Readline ─────────────────────────────────────────────────────────
+
+function createRL(): readline.Interface {
+  return readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+}
+
+function prompt(rl: readline.Interface, question: string): Promise<string> {
+  return new Promise((resolve) => {
+    rl.question(`  ${c.cyanBright}?${c.reset} ${question}`, (answer) => resolve(answer.trim()));
+  });
+}
+
+function promptSecret(rl: readline.Interface, question: string): Promise<string> {
+  return new Promise((resolve) => {
+    out(`  ${c.cyanBright}?${c.reset} ${question}`);
+
+    const stdin = process.stdin;
+    const wasRaw = stdin.isRaw;
+
+    if (stdin.setRawMode) {
+      stdin.setRawMode(true);
+    }
+    stdin.resume();
+
+    let input = '';
+
+    const onData = (ch: Buffer) => {
+      const char = ch.toString('utf8');
+
+      if (char === '\r' || char === '\n') {
+        stdin.removeListener('data', onData);
+        if (stdin.setRawMode) stdin.setRawMode(wasRaw ?? false);
+        ln('');
+        resolve(input.trim());
+        return;
+      }
+
+      if (char === '\x7f' || char === '\b') {
+        if (input.length > 0) {
+          input = input.slice(0, -1);
+          out('\b \b');
+        }
+        return;
+      }
+
+      if (char === '\x03') {
+        // Ctrl+C
+        ln('');
+        process.exit(1);
+      }
+
+      input += char;
+      out(`${c.dim}*${c.reset}`);
+    };
+
+    stdin.on('data', onData);
+  });
+}
+
+async function promptConfirm(rl: readline.Interface, question: string, defaultYes: boolean = true): Promise<boolean> {
+  const hint = defaultYes ? `${c.dim}(Y/n)${c.reset}` : `${c.dim}(y/N)${c.reset}`;
+  const answer = (await prompt(rl, `${question} ${hint} `)).toLowerCase();
+  if (!answer) return defaultYes;
+  return answer === 'y' || answer === 'yes';
+}
+
+async function promptSelect(rl: readline.Interface, items: string[], question: string): Promise<number> {
+  items.forEach((item, i) => {
+    ln(`  ${c.cyanBright}${i + 1}${c.reset}${c.gray}.${c.reset} ${item}`);
+  });
+  ln('');
+  const choice = await prompt(rl, `${question} `);
+  return parseInt(choice, 10) - 1;
+}
+
+async function waitForEnter(rl: readline.Interface, msg: string = 'Press Enter to continue...'): Promise<void> {
+  await prompt(rl, `${c.dim}${msg}${c.reset} `);
+}
+
+// ── Permissions ──────────────────────────────────────────────────────
+
+const REQUIRED_PERMISSIONS = [
+  { flag: PermissionFlagsBits.ManageRoles, name: 'Manage Roles' },
+  { flag: PermissionFlagsBits.ManageChannels, name: 'Manage Channels' },
+  { flag: PermissionFlagsBits.KickMembers, name: 'Kick Members' },
+  { flag: PermissionFlagsBits.BanMembers, name: 'Ban Members' },
+  { flag: PermissionFlagsBits.ManageGuild, name: 'Manage Server' },
+  { flag: PermissionFlagsBits.ViewChannel, name: 'View Channels' },
+  { flag: PermissionFlagsBits.SendMessages, name: 'Send Messages' },
+  { flag: PermissionFlagsBits.ManageMessages, name: 'Manage Messages' },
+  { flag: PermissionFlagsBits.EmbedLinks, name: 'Embed Links' },
+  { flag: PermissionFlagsBits.ReadMessageHistory, name: 'Read Message History' },
+  { flag: PermissionFlagsBits.AddReactions, name: 'Add Reactions' },
+  { flag: PermissionFlagsBits.ManageEmojisAndStickers, name: 'Manage Emojis & Stickers' },
+  { flag: PermissionFlagsBits.ManageWebhooks, name: 'Manage Webhooks' },
+  { flag: PermissionFlagsBits.ManageEvents, name: 'Manage Events' },
+  { flag: PermissionFlagsBits.ManageThreads, name: 'Manage Threads' },
+  { flag: PermissionFlagsBits.SendMessagesInThreads, name: 'Send Messages in Threads' },
+  { flag: PermissionFlagsBits.ViewAuditLog, name: 'View Audit Log' },
+  { flag: PermissionFlagsBits.ModerateMembers, name: 'Moderate Members' },
+  { flag: PermissionFlagsBits.MuteMembers, name: 'Mute Members' },
+  { flag: PermissionFlagsBits.DeafenMembers, name: 'Deafen Members' },
+  { flag: PermissionFlagsBits.MoveMembers, name: 'Move Members' },
+  { flag: PermissionFlagsBits.ManageNicknames, name: 'Manage Nicknames' },
+  { flag: PermissionFlagsBits.CreatePublicThreads, name: 'Create Public Threads' },
+  { flag: PermissionFlagsBits.CreatePrivateThreads, name: 'Create Private Threads' },
+];
+
+const PERMISSION_INTEGER = REQUIRED_PERMISSIONS.reduce(
+  (acc, p) => acc | p.flag,
+  BigInt(0)
+);
+
+// ── Init Command ─────────────────────────────────────────────────────
+
+async function runInit(): Promise<void> {
+  const rl = createRL();
+  const TOTAL_STEPS = 6;
+
+  try {
+    // ── Welcome ──
+    ln(LOGO);
+    box([
+      `${c.bold}${c.whiteBright}Discord MCP Server${c.reset}  ${c.gray}—${c.reset}  ${c.dim}Interactive Setup${c.reset}`,
+      `${c.dim}99 admin tools for managing Discord from Claude Code${c.reset}`,
+    ], c.cyan);
+    ln('');
+
+    // ── Step 1: Bot token ──
+    stepHeader(1, TOTAL_STEPS, 'Discord Bot Token');
+
+    const hasBot = await promptConfirm(rl, 'Do you already have a Discord bot?', false);
+
+    if (!hasBot) {
+      ln('');
+      box([
+        `${c.bold}Create a Discord Bot${c.reset}`,
+        ``,
+        `${c.cyanBright}1.${c.reset} Open the Discord Developer Portal`,
+        `${c.cyanBright}2.${c.reset} Click ${c.bold}"New Application"${c.reset} and name it`,
+        `${c.cyanBright}3.${c.reset} Go to the ${c.bold}Bot${c.reset} tab`,
+        `${c.cyanBright}4.${c.reset} Click ${c.bold}"Reset Token"${c.reset} and copy it`,
+      ], c.blue);
+      ln('');
+      link('https://discord.com/developers/applications');
+      ln('');
+      await waitForEnter(rl, 'Press Enter when you have your token...');
+    }
+
+    ln('');
+    const token = await promptSecret(rl, 'Paste your bot token: ');
+
+    if (!token) {
+      error('No token provided.');
+      return;
+    }
+
+    const masked = token.slice(0, 5) + '*'.repeat(Math.max(0, token.length - 9)) + token.slice(-4);
+    info(`Token received: ${masked}`);
+
+    // ── Step 2: Privileged intents ──
+    stepHeader(2, TOTAL_STEPS, 'Enable Privileged Intents');
+
+    box([
+      `${c.bold}Required Bot Intents${c.reset}`,
+      ``,
+      `In the Developer Portal ${c.gray}>${c.reset} ${c.bold}Bot${c.reset} tab, enable:`,
+      ``,
+      `  ${c.greenBright}▣${c.reset} ${c.bold}Server Members Intent${c.reset}`,
+      `  ${c.greenBright}▣${c.reset} ${c.bold}Message Content Intent${c.reset}`,
+    ], c.blue);
+    ln('');
+    await waitForEnter(rl, 'Press Enter when both intents are enabled...');
+
+    // ── Step 3: Validate token ──
+    stepHeader(3, TOTAL_STEPS, 'Connecting to Discord');
+
+    const spinner = createSpinner('Validating bot token...');
+
+    const client = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+      ],
+    });
+
+    let appId: string;
+    let guilds: Guild[];
+
+    try {
+      await client.login(token);
+      await new Promise<void>((resolve) => {
+        if (client.isReady()) return resolve();
+        client.once('ready', () => resolve());
+      });
+
+      appId = client.application?.id || client.user?.id || '';
+      guilds = [...client.guilds.cache.values()];
+
+      spinner.stop();
+      success(`Authenticated as ${c.bold}${client.user?.tag}${c.reset}`);
+      info(`Application ID: ${appId}`);
+      info(`Servers: ${guilds.length} found`);
+    } catch (err: any) {
+      spinner.stop();
+      error(`Authentication failed: ${err.message}`);
+      ln('');
+      bullet('Check that your token is correct');
+      bullet('Make sure privileged intents are enabled');
+      client.destroy();
+      return;
+    }
+
+    // ── Step 4: Invite bot ──
+    stepHeader(4, TOTAL_STEPS, 'Invite Bot to Server');
+
+    const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${appId}&scope=bot+applications.commands&permissions=${PERMISSION_INTEGER}`;
+
+    if (guilds.length === 0) {
+      warn('Bot is not in any servers yet.');
+      ln('');
+      ln(`  ${c.bold}Invite URL:${c.reset}`);
+      link(inviteUrl);
+      ln('');
+      await waitForEnter(rl, 'Press Enter after inviting the bot...');
+
+      const refreshSpinner = createSpinner('Refreshing server list...');
+      await client.guilds.fetch();
+      guilds = [...client.guilds.cache.values()];
+      refreshSpinner.stop();
+
+      if (guilds.length === 0) {
+        error('Bot still not in any servers.');
+        bullet('Open the invite URL above and add the bot');
+        bullet(`Then run ${c.bold}discord-mcp init${c.reset} again`);
+        client.destroy();
+        return;
+      }
+
+      success(`Found ${guilds.length} server${guilds.length > 1 ? 's' : ''}`);
+    } else {
+      success(`Bot is in ${guilds.length} server${guilds.length > 1 ? 's' : ''}`);
+      ln('');
+      info('Invite URL (for adding to more servers):');
+      link(inviteUrl);
+    }
+
+    // ── Step 5: Select guild ──
+    stepHeader(5, TOTAL_STEPS, 'Select Your Server');
+
+    let selectedGuild: Guild;
+
+    if (guilds.length === 1) {
+      selectedGuild = guilds[0]!;
+      success(`Auto-selected ${c.bold}${selectedGuild.name}${c.reset}`);
+      info(`ID: ${selectedGuild.id} | Members: ${selectedGuild.memberCount}`);
+    } else {
+      const guildItems = guilds.map(g =>
+        `${c.bold}${g.name}${c.reset} ${c.gray}(${g.id} • ${g.memberCount} members)${c.reset}`
+      );
+      const idx = await promptSelect(rl, guildItems, `Select a server (1-${guilds.length}):`);
+
+      if (isNaN(idx) || idx < 0 || idx >= guilds.length) {
+        error('Invalid selection.');
+        client.destroy();
+        return;
+      }
+
+      selectedGuild = guilds[idx]!;
+      success(`Selected ${c.bold}${selectedGuild.name}${c.reset}`);
+    }
+
+    client.destroy();
+
+    // ── Step 6: Write config ──
+    stepHeader(6, TOTAL_STEPS, 'Configure Claude Code');
+
+    const mcpJsonPath = path.join(process.cwd(), '.mcp.json');
+    const newConfig = {
+      mcpServers: {
+        discord: {
+          command: 'npx',
+          args: ['-y', '@quadslab.io/discord-mcp'],
+          env: {
+            DISCORD_TOKEN: token,
+            DISCORD_GUILD_ID: selectedGuild.id,
+          },
+        },
+      },
+    };
+
+    let wrote = false;
+
+    if (fs.existsSync(mcpJsonPath)) {
+      const merge = await promptConfirm(rl, '.mcp.json already exists. Merge discord config?');
+      if (merge) {
+        const existing = JSON.parse(fs.readFileSync(mcpJsonPath, 'utf-8'));
+        existing.mcpServers = existing.mcpServers || {};
+        existing.mcpServers.discord = newConfig.mcpServers.discord;
+        fs.writeFileSync(mcpJsonPath, JSON.stringify(existing, null, 2) + '\n');
+        success('Merged into existing .mcp.json');
+        wrote = true;
+      }
+    } else {
+      const write = await promptConfirm(rl, 'Create .mcp.json in current directory?');
+      if (write) {
+        fs.writeFileSync(mcpJsonPath, JSON.stringify(newConfig, null, 2) + '\n');
+        success('Created .mcp.json');
+        wrote = true;
+      }
+    }
+
+    if (!wrote) {
+      ln('');
+      info('Add this to your .mcp.json manually:');
+      ln('');
+      const json = JSON.stringify(newConfig, null, 2);
+      json.split('\n').forEach(line => {
+        ln(`  ${c.dim}${line}${c.reset}`);
+      });
+    }
+
+    // ── Done ──
+    ln('');
+    divider();
+    ln('');
+    ln(`  ${c.greenBright}${c.bold}Setup complete!${c.reset}  ${c.gray}🎉${c.reset}`);
+    ln('');
+    box([
+      `${c.bold}Next steps:${c.reset}`,
+      ``,
+      `${c.cyanBright}1.${c.reset} Open Claude Code in any project`,
+      `${c.cyanBright}2.${c.reset} Type ${c.bold}/mcp${c.reset} to connect the Discord server`,
+      `${c.cyanBright}3.${c.reset} Ask Claude to manage your server!`,
+      ``,
+      `${c.dim}Try: "List all channels in my Discord server"${c.reset}`,
+    ], c.green);
+    ln('');
+    ln(`  ${c.gray}Docs:${c.reset}  ${c.underline}${c.blueBright}https://github.com/HardHeadHackerHead/discord-mcp${c.reset}`);
+    ln(`  ${c.gray}Help:${c.reset}  ${c.bold}discord-mcp check${c.reset} ${c.dim}— verify permissions${c.reset}`);
+    ln('');
+    ln(`  ${c.dim}Made with ♥ by${c.reset} ${LOGO_MINI}`);
+    ln('');
+  } finally {
+    rl.close();
+  }
+}
+
+// ── Check Command ────────────────────────────────────────────────────
+
+async function runCheck(): Promise<void> {
+  ln('');
+  ln(`  ${LOGO_MINI} ${DISCORD_MCP_BADGE} ${c.dim}— Health Check${c.reset}`);
+  divider();
+  ln('');
+
+  // Load .env if present
+  const dotenv = await import('dotenv');
+  dotenv.config();
+
+  const token = process.env['DISCORD_TOKEN'] || process.env['BOT_TOKEN'];
+  const guildId = process.env['DISCORD_GUILD_ID'];
+
+  // Token check
+  out(`  ${c.dim}Token ............${c.reset} `);
+  if (!token) {
+    ln(`${c.redBright}NOT SET${c.reset}`);
+    ln('');
+    error(`Set DISCORD_TOKEN or run ${c.bold}discord-mcp init${c.reset}`);
+    return;
+  }
+  ln(`${c.greenBright}present${c.reset}`);
+
+  // Guild ID check
+  out(`  ${c.dim}Guild ID .........${c.reset} `);
+  if (!guildId) {
+    ln(`${c.redBright}NOT SET${c.reset}`);
+    ln('');
+    error(`Set DISCORD_GUILD_ID or run ${c.bold}discord-mcp init${c.reset}`);
+    return;
+  }
+  ln(`${c.dim}${guildId}${c.reset}`);
+
+  // Connect
+  const spinner = createSpinner('Connecting to Discord...');
+
+  const client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMembers,
+    ],
+  });
+
+  try {
+    await client.login(token);
+    await new Promise<void>((resolve) => {
+      if (client.isReady()) return resolve();
+      client.once('ready', () => resolve());
+    });
+
+    spinner.stop();
+    out(`  ${c.dim}Bot ..............${c.reset} `);
+    ln(`${c.greenBright}${client.user?.tag}${c.reset}`);
+
+    const guild = client.guilds.cache.get(guildId);
+    out(`  ${c.dim}Server ...........${c.reset} `);
+    if (!guild) {
+      ln(`${c.redBright}NOT FOUND${c.reset}`);
+      ln('');
+      error(`Guild ${guildId} not accessible. Is the bot invited?`);
+      client.destroy();
+      return;
+    }
+    ln(`${c.greenBright}${guild.name}${c.reset} ${c.dim}(${guild.memberCount} members)${c.reset}`);
+
+    // Permission audit
+    ln('');
+    ln(`  ${c.bold}Permissions${c.reset}`);
+    divider();
+    ln('');
+
+    const botMember = guild.members.cache.get(client.user!.id) || await guild.members.fetch(client.user!.id);
+    const permissions = botMember.permissions;
+
+    let granted = 0;
+    let missing = 0;
+
+    for (const { flag, name } of REQUIRED_PERMISSIONS) {
+      const has = permissions.has(flag);
+      const dots = '.'.repeat(Math.max(1, 30 - name.length));
+      if (has) {
+        ln(`  ${c.greenBright}✔${c.reset} ${name} ${c.dim}${dots}${c.reset} ${c.greenBright}yes${c.reset}`);
+        granted++;
+      } else {
+        ln(`  ${c.redBright}✖${c.reset} ${name} ${c.dim}${dots}${c.reset} ${c.redBright}MISSING${c.reset}`);
+        missing++;
+      }
+    }
+
+    ln('');
+    divider();
+    ln('');
+
+    // Summary
+    const total = REQUIRED_PERMISSIONS.length;
+    const pct = Math.round((granted / total) * 100);
+    const barWidth = 30;
+    const filled = Math.round((granted / total) * barWidth);
+    const barColor = missing === 0 ? c.greenBright : missing <= 3 ? c.yellowBright : c.redBright;
+    const bar = `${barColor}${'█'.repeat(filled)}${c.gray}${'░'.repeat(barWidth - filled)}${c.reset}`;
+
+    ln(`  ${bar}  ${c.bold}${pct}%${c.reset} ${c.dim}(${granted}/${total})${c.reset}`);
+    ln('');
+
+    if (missing === 0) {
+      success(`All ${total} permissions granted`);
+      ln('');
+      box([
+        `${c.greenBright}${c.bold}MCP server is ready!${c.reset}`,
+        `Run ${c.bold}discord-mcp${c.reset} or use via ${c.bold}.mcp.json${c.reset} in Claude Code`,
+      ], c.green);
+    } else {
+      warn(`${missing} permission${missing > 1 ? 's' : ''} missing`);
+      ln('');
+      bullet('Re-invite the bot with the correct permissions');
+      bullet(`Or update the bot's role in ${c.bold}${guild.name}${c.reset} > Server Settings > Roles`);
+    }
+
+    ln('');
+    client.destroy();
+  } catch (err: any) {
+    spinner.stop();
+    error(`Connection failed: ${err.message}`);
+    ln('');
+    bullet('Check that your bot token is valid');
+    bullet('Ensure the bot has not been deleted');
+    ln('');
+    client.destroy();
+  }
+}
+
+// ── Version Command ──────────────────────────────────────────────────
+
+function printVersion(): void {
+  const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
+  ln(`${LOGO_MINI} ${DISCORD_MCP_BADGE} ${c.dim}v${pkg.version}${c.reset}`);
+}
+
+// ── Help Command ─────────────────────────────────────────────────────
+
+function printHelp(): void {
+  ln(LOGO);
+  ln(`  ${c.bold}Discord MCP Server${c.reset}  ${c.dim}— Manage Discord from Claude Code${c.reset}`);
+  ln(`  ${c.dim}99 tools across 14 categories${c.reset}`);
+  ln('');
+  divider();
+  ln('');
+  ln(`  ${c.bold}USAGE${c.reset}`);
+  ln('');
+  ln(`    ${c.cyan}$${c.reset} discord-mcp ${c.dim}[command]${c.reset}`);
+  ln(`    ${c.cyan}$${c.reset} npx @quadslab.io/discord-mcp ${c.dim}[command]${c.reset}`);
+  ln('');
+  ln(`  ${c.bold}COMMANDS${c.reset}`);
+  ln('');
+  ln(`    ${c.cyanBright}init${c.reset}      Interactive setup wizard`);
+  ln(`    ${c.cyanBright}check${c.reset}     Health check & permission audit`);
+  ln(`    ${c.cyanBright}start${c.reset}     Start the MCP server ${c.dim}(default)${c.reset}`);
+  ln(`    ${c.cyanBright}help${c.reset}      Show this help message`);
+  ln(`    ${c.cyanBright}version${c.reset}   Show version`);
+  ln('');
+  ln(`  ${c.bold}EXAMPLES${c.reset}`);
+  ln('');
+  ln(`    ${c.dim}# First-time setup${c.reset}`);
+  ln(`    ${c.cyan}$${c.reset} npx @quadslab.io/discord-mcp init`);
+  ln('');
+  ln(`    ${c.dim}# Verify everything works${c.reset}`);
+  ln(`    ${c.cyan}$${c.reset} npx @quadslab.io/discord-mcp check`);
+  ln('');
+  ln(`    ${c.dim}# In .mcp.json (auto-detected)${c.reset}`);
+  ln(`    ${c.cyan}$${c.reset} npx @quadslab.io/discord-mcp`);
+  ln('');
+  divider();
+  ln('');
+  ln(`  ${c.dim}Docs${c.reset}   ${c.underline}${c.blueBright}https://github.com/HardHeadHackerHead/discord-mcp${c.reset}`);
+  ln(`  ${c.dim}npm${c.reset}    ${c.underline}${c.blueBright}https://www.npmjs.com/package/@quadslab.io/discord-mcp${c.reset}`);
+  ln('');
+  ln(`  ${c.dim}Made with ♥ by${c.reset} ${LOGO_MINI}`);
+  ln('');
+}
+
+// ── Start Command ────────────────────────────────────────────────────
+
+async function runStart(): Promise<void> {
+  const { main } = await import('./mcp-server.js');
+  await main();
+}
+
+// ── Main ─────────────────────────────────────────────────────────────
+
+const subcommand = process.argv[2];
+
+// If not a TTY (i.e., launched by MCP via stdio), always start the server
+if (!process.stdin.isTTY && subcommand !== 'check' && subcommand !== 'help' && subcommand !== 'version' && subcommand !== '--version' && subcommand !== '-v' && subcommand !== '--help' && subcommand !== '-h') {
+  runStart();
+} else {
+  switch (subcommand) {
+    case 'init':
+      runInit();
+      break;
+    case 'check':
+      runCheck();
+      break;
+    case 'start':
+    case undefined:
+      runStart();
+      break;
+    case 'help':
+    case '--help':
+    case '-h':
+      printHelp();
+      break;
+    case 'version':
+    case '--version':
+    case '-v':
+      printVersion();
+      break;
+    default:
+      error(`Unknown command: ${subcommand}`);
+      ln('');
+      printHelp();
+      process.exit(1);
+  }
+}

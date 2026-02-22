@@ -4,9 +4,84 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
-A Model Context Protocol (MCP) server for full Discord server administration through Claude Code. 99 tools across 14 categories covering every aspect of server management -- from sending messages and managing roles to configuring auto-moderation rules, forums, stages, and scheduled events.
+**Manage your entire Discord server from Claude Code.** 99 admin tools across 14 categories — roles, channels, members, messages, moderation, forums, stages, webhooks, events, and more. Just talk to Claude in plain English.
 
-Built with [Discord.js v14](https://discord.js.org/) and the [MCP SDK](https://github.com/modelcontextprotocol/sdk).
+Built by [QuadsLab.io](https://quadslab.io) with [Discord.js v14](https://discord.js.org/) and the [MCP SDK](https://github.com/modelcontextprotocol/sdk).
+
+---
+
+## Setup in 60 Seconds
+
+One command. No manual config files. No copying IDs.
+
+```bash
+npx @quadslab.io/discord-mcp init
+```
+
+The interactive wizard walks you through everything:
+
+```
+    ____                  __     __          __
+   / __ \__  ______ _____/ /____/ /   ____ _/ /_
+  / / / / / / / __ `/ __  / ___/ /   / __ `/ __ \
+ / /_/ / /_/ / /_/ / /_/ (__  ) /___/ /_/ / /_/ /
+ \___\_\__,_/\__,_/\__,_/____/_____/\__,_/_.___/
+                                          .io
+
+  ┌────────────────────────────────────────────────────────┐
+  │ Discord MCP Server  —  Interactive Setup               │
+  │ 99 admin tools for managing Discord from Claude Code   │
+  └────────────────────────────────────────────────────────┘
+
+  ● ● ● ○ ○ ○  (3/6)
+  Connecting to Discord
+
+  ✔ Authenticated as MyBot#1234
+    Application ID: 123456789
+    Servers: 2 found
+```
+
+It will:
+1. Guide you through creating a Discord bot (or use an existing one)
+2. Validate your bot token live
+3. Auto-generate the invite URL with all required permissions
+4. Let you pick which server to manage
+5. Write your `.mcp.json` automatically
+
+Then open Claude Code and type `/mcp` to connect. Done.
+
+### Verify Your Setup
+
+```bash
+npx @quadslab.io/discord-mcp check
+```
+
+```
+  QuadsLab.io [discord-mcp] — Health Check
+  ────────────────────────────────────────────────────
+
+  Token ............ present
+  Bot .............. MyBot#1234
+  Server ........... My Gaming Server (1,024 members)
+
+  Permissions
+  ────────────────────────────────────────────────────
+
+  ✔ Manage Roles .............. yes
+  ✔ Manage Channels ........... yes
+  ✔ Kick Members .............. yes
+  ✔ Ban Members ............... yes
+  ...
+
+  ██████████████████████████████  100% (24/24)
+
+  ✔ All 24 permissions granted
+
+  ┌──────────────────────────────────────────────────┐
+  │ MCP server is ready!                             │
+  │ Run discord-mcp or use via .mcp.json in Claude   │
+  └──────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -27,99 +102,93 @@ Once connected to Claude Code, just ask in natural language:
 - *"Bulk delete the last 50 messages in #bot-testing"*
 - *"Give everyone with the Member role access to #private-channel"*
 
-Claude automatically resolves channel, role, and member names using fuzzy matching -- no need to look up IDs.
+Claude automatically resolves channel, role, and member names using fuzzy matching — no need to look up IDs.
 
 ---
 
 ## Features
 
-- **99 tools across 14 categories** -- comprehensive Discord server administration without leaving the terminal
-- **Fuzzy name resolution** -- type `"bot testing"`, `"bot-testing"`, or `"bottesting"` and it resolves correctly; no need to look up IDs
-- **Zero-config name matching** -- channels, roles, and members are all resolved by name, ID, or mention format automatically
-- **Pre-cached server data** -- all channels, roles, and members are cached on startup for instant lookups without extra API calls
-- **Structured JSON responses** -- every tool returns consistent, pretty-printed JSON
-- **Audit log integration** -- all modifying operations accept a `reason` parameter that appears in the Discord audit log
-- **Helpful error recovery** -- failed lookups return suggestions (e.g., "Did you mean: #general, #bot-testing?")
-- **MCP resources** -- three read-only resources for server overview data
+- **99 tools across 14 categories** — comprehensive Discord server administration without leaving the terminal
+- **Interactive setup wizard** — `npx init` walks you through bot creation, token validation, and config in under a minute
+- **Health check & permission audit** — `npx check` verifies your token, server access, and all 24 required permissions with a visual progress bar
+- **Fuzzy name resolution** — type `"bot testing"`, `"bot-testing"`, or `"bottesting"` and it resolves correctly; no need to look up IDs
+- **Zero-config name matching** — channels, roles, and members are all resolved by name, ID, or mention format automatically
+- **Pre-cached server data** — all channels, roles, and members are cached on startup for instant lookups without extra API calls
+- **Structured JSON responses** — every tool returns consistent, pretty-printed JSON
+- **Audit log integration** — all modifying operations accept a `reason` parameter that appears in the Discord audit log
+- **Helpful error recovery** — failed lookups return suggestions (e.g., "Did you mean: #general, #bot-testing?")
+- **MCP resources** — three read-only resources for server overview data
 
 ---
 
-## Quick Start
+## Alternative Setup (Manual)
 
-### 1. Clone the repository
+If you prefer to configure things manually instead of using the wizard:
 
-```bash
-git clone https://github.com/HardHeadHackerHead/discord-mcp.git
-cd discord-mcp
-```
+<details>
+<summary><strong>Manual setup steps</strong></summary>
 
-### 2. Install dependencies
+### 1. Create a Discord bot
 
-```bash
-npm install
-```
+Follow the [Bot Setup Guide](docs/bot-setup-guide.md) to create a bot in the Discord Developer Portal and get your token.
 
-### 3. Configure environment variables
+### 2. Add to `.mcp.json`
 
-Copy the example environment file and fill in your values:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your Discord bot token and server ID:
-
-```env
-DISCORD_TOKEN=your_bot_token_here
-DISCORD_GUILD_ID=your_guild_id_here
-```
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DISCORD_TOKEN` | Yes | Your Discord bot token (also accepts `BOT_TOKEN` as fallback) |
-| `DISCORD_GUILD_ID` | Yes | The ID of the Discord server to manage |
-
-### 4. Build
-
-```bash
-npm run build
-```
-
-### 5. Run
-
-```bash
-npm start
-# or
-node dist/mcp-server.js
-```
-
-For development with live TypeScript execution:
-
-```bash
-npm run dev
-```
-
----
-
-## Claude Code Integration
-
-Add the following to your `.mcp.json` file (located in your project root or home directory):
+Create or edit `.mcp.json` in your project root:
 
 ```json
 {
   "mcpServers": {
-    "discord-server": {
-      "command": "node",
-      "args": ["dist/mcp-server.js"],
-      "cwd": "/path/to/discord-mcp"
+    "discord": {
+      "command": "npx",
+      "args": ["-y", "@quadslab.io/discord-mcp"],
+      "env": {
+        "DISCORD_TOKEN": "your-bot-token",
+        "DISCORD_GUILD_ID": "your-server-id"
+      }
     }
   }
 }
 ```
 
-After saving, reconnect the MCP server in Claude Code with the `/mcp` command.
+### 3. Connect in Claude Code
 
-Once connected, all 99 tools are available directly in Claude Code. You can ask Claude to manage your Discord server using natural language, and it will call the appropriate tools automatically.
+Type `/mcp` in Claude Code to connect the server.
+
+</details>
+
+<details>
+<summary><strong>Run from source</strong></summary>
+
+```bash
+git clone https://github.com/HardHeadHackerHead/discord-mcp.git
+cd discord-mcp
+npm install
+cp .env.example .env
+# Edit .env with your DISCORD_TOKEN and DISCORD_GUILD_ID
+npm run build
+npm start
+```
+
+</details>
+
+---
+
+## CLI Reference
+
+```
+$ npx @quadslab.io/discord-mcp [command]
+```
+
+| Command | Description |
+|---------|-------------|
+| `init` | Interactive setup wizard — creates bot, validates token, writes `.mcp.json` |
+| `check` | Health check — verifies token, server access, and permission audit |
+| `start` | Start the MCP server (default when no command given) |
+| `help` | Show help message |
+| `version` | Show version |
+
+When launched via `.mcp.json` (stdin is not a TTY), the server starts automatically — no subcommand needed.
 
 ---
 
@@ -147,12 +216,15 @@ Once connected, all 99 tools are available directly in Claude Code. You can ask 
 
 ---
 
+<details>
+<summary><strong>Full tool reference (click to expand)</strong></summary>
+
 ### Guild (2 tools)
 
 | Tool | Description |
 |------|-------------|
 | `list_guilds` | List all servers the bot is a member of |
-| `get_guild_info` | Detailed server info -- member count, channels, roles, features, boost tier |
+| `get_guild_info` | Detailed server info — member count, channels, roles, features, boost tier |
 
 ### Roles (9 tools)
 
@@ -183,7 +255,7 @@ Once connected, all 99 tools are available directly in Claude Code. You can ask 
 | `view_channel_permissions` | View all permission overwrites on a channel |
 | `lock_channel` | Deny SendMessages for @everyone (quick lock) |
 | `unlock_channel` | Remove SendMessages deny for @everyone |
-| `set_slowmode` | Set rate limit (0-21600 seconds) on a text channel |
+| `set_slowmode` | Set rate limit (0–21600 seconds) on a text channel |
 | `clone_channel` | Duplicate a channel with all permissions and settings |
 | `reorder_channels` | Reorder channels by specifying new positions |
 | `set_voice_region` | Set the RTC region for a voice channel |
@@ -194,9 +266,9 @@ Once connected, all 99 tools are available directly in Claude Code. You can ask 
 | Tool | Description |
 |------|-------------|
 | `list_members` | List members with optional role and search filters |
-| `get_member` | Detailed member info -- roles, join date, account age, permissions |
+| `get_member` | Detailed member info — roles, join date, account age, permissions |
 | `kick_member` | Kick a member from the server |
-| `ban_member` | Ban a member with optional message deletion (0-7 days) |
+| `ban_member` | Ban a member with optional message deletion (0–7 days) |
 | `unban_member` | Remove a ban by username or user ID |
 | `timeout_member` | Apply a timeout (10m, 1h, 1d, 1w) or remove one |
 | `prune_members` | Remove inactive members (supports dry run and role filtering) |
@@ -216,7 +288,7 @@ Once connected, all 99 tools are available directly in Claude Code. You can ask 
 | `send_embed` | Send a rich embed with title, fields, images, and footer |
 | `edit_message` | Edit a message previously sent by the bot |
 | `delete_message` | Delete a single message by ID |
-| `bulk_delete_messages` | Delete 2-100 messages at once (< 14 days old), optionally filtered by user |
+| `bulk_delete_messages` | Delete 2–100 messages at once (< 14 days old), optionally filtered by user |
 | `crosspost_message` | Publish a message in an announcement channel to all following channels |
 | `pin_message` | Pin a message |
 | `unpin_message` | Unpin a message |
@@ -228,7 +300,7 @@ Once connected, all 99 tools are available directly in Claude Code. You can ask 
 
 | Tool | Description |
 |------|-------------|
-| `get_reactions` | Get all reactions on a message with full reactor details -- account creation date, server join date, roles, avatar, boost status. Optionally filter by emoji. |
+| `get_reactions` | Get all reactions on a message with full reactor details — account creation date, server join date, roles, avatar, boost status. Optionally filter by emoji. |
 
 ### Server Admin (13 tools)
 
@@ -313,9 +385,11 @@ Once connected, all 99 tools are available directly in Claude Code. You can ask 
 | Tool | Description |
 |------|-------------|
 | `list_automod_rules` | List all automod rules with triggers, actions, and exemptions |
-| `create_automod_rule` | Create a rule -- keyword filter, spam detection, keyword presets, or mention spam |
+| `create_automod_rule` | Create a rule — keyword filter, spam detection, keyword presets, or mention spam |
 | `edit_automod_rule` | Modify a rule's keywords, actions, exemptions, or enabled state |
 | `delete_automod_rule` | Delete an automod rule |
+
+</details>
 
 ---
 
@@ -323,10 +397,10 @@ Once connected, all 99 tools are available directly in Claude Code. You can ask 
 
 All tools that accept channel, role, or member names use smart fuzzy matching. You never need to look up IDs manually. The resolution order is:
 
-1. **Exact ID match** -- pass a Discord snowflake ID directly
-2. **Exact name match** -- case-insensitive
-3. **Normalized match** -- ignores hyphens, spaces, and underscores (`"bot testing"` matches `"bot-testing"`)
-4. **Substring match** -- partial name matches at 0.7+ similarity threshold
+1. **Exact ID match** — pass a Discord snowflake ID directly
+2. **Exact name match** — case-insensitive
+3. **Normalized match** — ignores hyphens, spaces, and underscores (`"bot testing"` matches `"bot-testing"`)
+4. **Substring match** — partial name matches at 0.7+ similarity threshold
 
 Mention formats are also handled automatically:
 
@@ -348,63 +422,29 @@ Three read-only resources are exposed for quick server overview data:
 | `discord://server/channels` | JSON list of all channels organized by category |
 | `discord://server/roles` | JSON list of all roles sorted by position |
 
-These resources can be read by Claude Code to build context about the server before performing operations.
-
 ---
 
 ## Required Permissions
 
-The Discord bot needs the following permissions in the server for full functionality:
+The Discord bot needs the following permissions for full functionality:
 
-**General**
-- Manage Server
-- Manage Roles
-- Manage Channels
-- View Audit Log
-- Manage Webhooks
-- Manage Events
-- Manage Emojis and Stickers
+| Category | Permissions |
+|----------|-------------|
+| **General** | Manage Server, Manage Roles, Manage Channels, View Audit Log, Manage Webhooks, Manage Events, Manage Emojis and Stickers |
+| **Text** | Send Messages, Manage Messages, Read Message History, Add Reactions, Use External Emojis |
+| **Voice** | Move Members, Disconnect Members |
+| **Moderation** | Kick Members, Ban Members, Moderate Members, Manage Auto Moderation |
 
-**Text**
-- Send Messages
-- Manage Messages
-- Read Message History
-- Add Reactions
-- Use External Emojis
+The `init` wizard auto-generates an invite URL with all of these. If you set up manually, see the [Bot Setup Guide](docs/bot-setup-guide.md) for which checkboxes to select.
 
-**Voice**
-- Move Members
-- Disconnect Members
-
-**Moderation**
-- Kick Members
-- Ban Members
-- Moderate Members
-- Manage Auto Moderation
-
-The bot can only act within its role hierarchy -- it cannot manage roles positioned higher than its own highest role.
-
-### Required OAuth2 Scopes
-
-When inviting the bot, ensure the following scopes are selected:
-
-- `bot`
-- `applications.commands`
+The bot can only act within its role hierarchy — it cannot manage roles positioned higher than its own highest role.
 
 ### Gateway Intents
 
-The bot connects with these privileged intents (must be enabled in the Discord Developer Portal):
+These privileged intents must be enabled in the [Discord Developer Portal](https://discord.com/developers/applications):
 
-- `Guilds` -- server structure (channels, roles)
-- `GuildMembers` -- member data and events
-- `GuildMessages` -- message content and events
-- `GuildModeration` -- ban and kick events
-- `MessageContent` -- read message text
-- `GuildMessageReactions` -- reaction data
-- `GuildScheduledEvents` -- scheduled event management
-- `AutoModerationConfiguration` -- automod rule management
-- `GuildWebhooks` -- webhook events
-- `GuildInvites` -- invite tracking
+- **Server Members Intent** — required for member management
+- **Message Content Intent** — required for reading message content
 
 ---
 
@@ -417,58 +457,43 @@ The bot connects with these privileged intents (must be enabled in the Discord D
 ├── README.md
 ├── LICENSE
 ├── .env.example
-├── .gitignore
 ├── docs/
-│   └── discord-mcp-server.md      # Full tool reference documentation
+│   ├── discord-mcp-server.md    # Full tool reference documentation
+│   └── bot-setup-guide.md       # Step-by-step bot creation guide
 └── src/
-    ├── mcp-server.ts               # Entry point -- validates env, initializes client, starts server
-    ├── index.ts                     # MCP server setup -- registers tools, resources, and request handlers
-    ├── discord-client.ts            # Discord.js client -- intents, caching, connection management
+    ├── cli.ts                   # CLI — init wizard, health check, server start
+    ├── mcp-server.ts            # MCP server — validates env, initializes client
+    ├── index.ts                 # Tool/resource registration and request routing
+    ├── discord-client.ts        # Discord.js client — intents, caching, connection
     └── tools/
-        ├── index.ts                 # Tool registry -- routes tool calls to category handlers
-        ├── utils.ts                 # Fuzzy matching -- smart name resolution for channels, roles, members
-        ├── guild.ts                 # Server info tools (2)
-        ├── roles.ts                 # Role management tools (9)
-        ├── channels.ts              # Channel management tools (16)
-        ├── members.ts               # Member management tools (12)
-        ├── messages.ts              # Messaging tools (13)
-        ├── reactions.ts             # Reaction tools (1)
-        ├── server.ts                # Server admin tools (13)
-        ├── threads.ts               # Thread management tools (7)
-        ├── emojis.ts                # Emoji & sticker tools (7)
-        ├── webhooks.ts              # Webhook tools (4)
-        ├── events.ts                # Scheduled event tools (4)
-        ├── automod.ts               # Auto-moderation tools (4)
-        ├── forums.ts                # Forum channel tools (5)
-        └── stage.ts                 # Stage instance tools (3)
+        ├── index.ts             # Tool registry — routes calls to category handlers
+        ├── utils.ts             # Fuzzy matching for channels, roles, members
+        ├── guild.ts             # Server info (2)
+        ├── roles.ts             # Role management (9)
+        ├── channels.ts          # Channel management (16)
+        ├── members.ts           # Member management (12)
+        ├── messages.ts          # Messaging (13)
+        ├── reactions.ts         # Reactions (1)
+        ├── server.ts            # Server admin (13)
+        ├── threads.ts           # Thread management (7)
+        ├── forums.ts            # Forum channels (5)
+        ├── emojis.ts            # Emoji & stickers (7)
+        ├── webhooks.ts          # Webhooks (4)
+        ├── events.ts            # Scheduled events (4)
+        ├── stage.ts             # Stage instances (3)
+        └── automod.ts           # Auto-moderation (4)
 ```
 
 ---
 
 ## Contributing
 
-Contributions are welcome. To get started:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Make your changes
-4. Ensure the project builds cleanly (`npm run build`)
-5. Commit your changes with a descriptive message
-6. Push to your fork and open a pull request
-
-### Guidelines
-
-- Follow the existing code style and patterns
-- Each new tool should be added to the appropriate category file in `src/tools/`
-- All tools must return structured JSON responses
-- Include fuzzy matching support for any new parameters that accept channel, role, or member names
-- Add new tools to the tool registry in `src/tools/index.ts`
-- Update the documentation in `docs/discord-mcp-server.md` for any new or changed tools
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and guidelines.
 
 ---
 
 ## License
 
-MIT License. Copyright (c) 2026 [QuadsLab](https://github.com/quadslab).
+MIT License. Copyright (c) 2026 [QuadsLab.io](https://quadslab.io).
 
 See [LICENSE](LICENSE) for the full text.

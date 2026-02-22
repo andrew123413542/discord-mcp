@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-22
+
+### Added
+
+- Interactive CLI setup wizard (`npx @quadslab.io/discord-mcp init`)
+  - Guided bot creation with step-by-step instructions
+  - Live token validation with masked input
+  - Auto-generated invite URL with all required permissions
+  - Server auto-discovery and selection
+  - Automatic `.mcp.json` generation with merge support
+- Health check command (`npx @quadslab.io/discord-mcp check`)
+  - Token and server validation
+  - Full permission audit with visual progress bar
+  - Color-coded pass/fail output
+- Help and version commands
+- Branded CLI output with QuadsLab.io ASCII art, ANSI colors, animated spinners
+- TTY detection — auto-starts MCP server when launched via `.mcp.json`
+
+### Changed
+
+- Binary entry point changed from `mcp-server.js` to `cli.js`
+- `mcp-server.ts` now exports `main()` for CLI imports
+
 ## [1.0.0] - 2026-02-22
 
 ### Added
