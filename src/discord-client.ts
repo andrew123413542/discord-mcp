@@ -1,7 +1,44 @@
-import { Client, GatewayIntentBits, Partials, ChannelType } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, ChannelType, DiscordAPIError } from 'discord.js';
 
 let client: Client | null = null;
 let guildId: string | null = null;
+
+/**
+ * Retry a function with exponential backoff on rate limit errors.
+ * Handles both REST API (429) and gateway (opcode 8) rate limits.
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  label: string = 'operation',
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const message = err?.message || String(err);
+      const isRateLimit =
+        (err instanceof DiscordAPIError && err.status === 429) ||
+        message.includes('rate limit') ||
+        message.includes('Rate limit') ||
+        err?.code === 'RateLimited';
+
+      if (!isRateLimit || attempt === maxRetries) {
+        throw err;
+      }
+
+      // Parse retry_after from the error if available, otherwise use exponential backoff
+      const retryAfterMatch = message.match(/(?:Retry after|retry_after)\s*([\d.]+)/i);
+      const retryAfterSec = retryAfterMatch ? parseFloat(retryAfterMatch[1]) : Math.pow(2, attempt + 1);
+      const waitMs = Math.min(retryAfterSec * 1000 + 500, 60000); // Cap at 60s, add 500ms buffer
+
+      console.error(`Rate limited on ${label} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${(waitMs / 1000).toFixed(1)}s...`);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+    }
+  }
+
+  throw new Error(`Max retries exceeded for ${label}`);
+}
 
 // Cached server data for fast lookups
 export interface ServerCache {
@@ -128,8 +165,13 @@ function getChannelTypeName(type: ChannelType): string {
 export async function refreshServerCache(): Promise<ServerCache> {
   const guild = await getGuild();
 
-  // Fetch all members
-  await guild.members.fetch();
+  // Fetch members with retry to handle gateway rate limits (opcode 8)
+  // The gateway has a limit of ~5 requests per minute for member chunking
+  await withRetry(
+    () => guild.members.fetch(),
+    3,
+    'member fetch',
+  );
 
   // Build channel cache
   const channels = [...guild.channels.cache.values()].map(c => {

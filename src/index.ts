@@ -7,7 +7,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { allTools, executeTool } from './tools/index.js';
-import { getServerSummary, getServerCache } from './discord-client.js';
+import { getServerSummary, getServerCache, withRetry } from './discord-client.js';
 
 /**
  * Create and configure the MCP server for Discord management
@@ -110,7 +110,11 @@ export function createMCPServer(): Server {
     const { name, arguments: args } = request.params;
 
     try {
-      const result = await executeTool(name, (args as Record<string, unknown>) ?? {});
+      const result = await withRetry(
+        () => executeTool(name, (args as Record<string, unknown>) ?? {}),
+        3,
+        name,
+      );
 
       return {
         content: [
