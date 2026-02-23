@@ -120,25 +120,67 @@ function link(url: string): void {
   ln(`  ${c.underline}${c.blueBright}${url}${c.reset}`);
 }
 
+// ── Timing Helpers ───────────────────────────────────────────────────
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
 // ── Spinner ──────────────────────────────────────────────────────────
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
-function createSpinner(message: string): { stop: (finalMsg?: string) => void } {
+function createSpinner(message: string): { stop: (finalMsg?: string) => void; update: (msg: string) => void } {
   let i = 0;
+  let currentMsg = message;
   const interval = setInterval(() => {
     const frame = SPINNER_FRAMES[i % SPINNER_FRAMES.length];
-    out(`\r  ${c.cyanBright}${frame}${c.reset} ${c.dim}${message}${c.reset}  `);
+    out(`\r  ${c.cyanBright}${frame}${c.reset} ${c.dim}${currentMsg}${c.reset}  `);
     i++;
   }, 80);
 
   return {
+    update(msg: string) {
+      // Clear old line then set new message
+      out('\r' + ' '.repeat(currentMsg.length + 10) + '\r');
+      currentMsg = msg;
+    },
     stop(finalMsg?: string) {
       clearInterval(interval);
-      out('\r' + ' '.repeat(message.length + 10) + '\r');
+      out('\r' + ' '.repeat(currentMsg.length + 10) + '\r');
       if (finalMsg) ln(finalMsg);
     },
   };
+}
+
+// ── Typewriter Effect ────────────────────────────────────────────────
+
+async function typewrite(text: string, delay: number = 25): Promise<void> {
+  for (const char of text) {
+    out(char);
+    await sleep(delay);
+  }
+}
+
+// ── Token Validation ─────────────────────────────────────────────────
+
+function isTokenFormatValid(token: string): { valid: boolean; reason?: string } {
+  // Discord bot tokens have 3 base64 segments separated by dots
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    return { valid: false, reason: 'Token should have 3 parts separated by dots' };
+  }
+  // First part is base64-encoded bot user ID
+  try {
+    const decoded = Buffer.from(parts[0]!, 'base64').toString();
+    if (!/^\d+$/.test(decoded)) {
+      return { valid: false, reason: 'First segment doesn\'t decode to a valid user ID' };
+    }
+  } catch {
+    return { valid: false, reason: 'First segment is not valid base64' };
+  }
+  if (parts[1]!.length < 4 || parts[2]!.length < 20) {
+    return { valid: false, reason: 'Token segments appear too short' };
+  }
+  return { valid: true };
 }
 
 // ── Readline ─────────────────────────────────────────────────────────
@@ -266,11 +308,15 @@ async function runInit(): Promise<void> {
   try {
     // ── Welcome ──
     ln(LOGO);
-    box([
-      `${c.bold}${c.whiteBright}Discord MCP Server${c.reset}  ${c.gray}—${c.reset}  ${c.dim}Interactive Setup${c.reset}`,
-      `${c.dim}99 admin tools for managing Discord from Claude Code${c.reset}`,
-    ], c.cyan);
     ln('');
+    out('  ');
+    await typewrite(`${c.bold}${c.whiteBright}Discord MCP Server${c.reset}`, 30);
+    await typewrite(`  ${c.gray}—${c.reset}  `, 40);
+    await typewrite(`${c.dim}Interactive Setup Wizard${c.reset}`, 20);
+    ln('');
+    ln(`  ${c.dim}99 admin tools for managing Discord from any MCP client${c.reset}`);
+    ln('');
+    await sleep(300);
 
     // ── Step 1: Bot token ──
     stepHeader(1, TOTAL_STEPS, 'Discord Bot Token');
@@ -293,18 +339,37 @@ async function runInit(): Promise<void> {
       await waitForEnter(rl, 'Press Enter when you have your token...');
     }
 
-    ln('');
-    const token = await promptSecret(rl, 'Paste your bot token: ');
+    // Token input loop — allow retries on invalid format
+    let token = '';
+    while (true) {
+      ln('');
+      token = await promptSecret(rl, 'Paste your bot token: ');
 
-    if (!token) {
-      error('No token provided.');
-      return;
+      if (!token) {
+        error('No token provided.');
+        return;
+      }
+
+      // Pre-validate token format before connecting
+      const formatCheck = isTokenFormatValid(token);
+      if (!formatCheck.valid) {
+        ln('');
+        warn(`Token format looks wrong: ${formatCheck.reason}`);
+        info('Discord bot tokens look like: NjE2...OTg.Gw...Xg.Sv...kQ');
+        ln('');
+        const retry = await promptConfirm(rl, 'Try a different token?', true);
+        if (!retry) return;
+        continue;
+      }
+
+      break;
     }
 
     const masked = token.slice(0, 5) + '*'.repeat(Math.max(0, token.length - 9)) + token.slice(-4);
-    info(`Token received: ${masked}`);
+    success(`Token format valid: ${c.dim}${masked}${c.reset}`);
 
     // ── Step 2: Privileged intents ──
+    await sleep(200);
     stepHeader(2, TOTAL_STEPS, 'Enable Privileged Intents');
 
     box([
@@ -321,7 +386,8 @@ async function runInit(): Promise<void> {
     // ── Step 3: Validate token ──
     stepHeader(3, TOTAL_STEPS, 'Connecting to Discord');
 
-    const spinner = createSpinner('Validating bot token...');
+    const spinner = createSpinner('Resolving gateway...');
+    await sleep(400);
 
     const client = new Client({
       intents: [
@@ -334,6 +400,7 @@ async function runInit(): Promise<void> {
     let guilds: Guild[];
 
     try {
+      spinner.update('Authenticating bot token...');
       await client.login(token);
       await new Promise<void>((resolve) => {
         if (client.isReady()) return resolve();
@@ -343,21 +410,39 @@ async function runInit(): Promise<void> {
       appId = client.application?.id || client.user?.id || '';
       guilds = [...client.guilds.cache.values()];
 
+      spinner.update('Fetching server list...');
+      await sleep(300);
+
       spinner.stop();
-      success(`Authenticated as ${c.bold}${client.user?.tag}${c.reset}`);
-      info(`Application ID: ${appId}`);
-      info(`Servers: ${guilds.length} found`);
+      ln('');
+      success(`Connected as ${c.bold}${c.whiteBright}${client.user?.tag}${c.reset}`);
+      await sleep(100);
+      success(`Application ID: ${c.dim}${appId}${c.reset}`);
+      await sleep(100);
+      success(`Servers found: ${c.bold}${guilds.length}${c.reset}`);
     } catch (err: any) {
       spinner.stop();
+      ln('');
       error(`Authentication failed: ${err.message}`);
       ln('');
       bullet('Check that your token is correct');
       bullet('Make sure privileged intents are enabled');
+      ln('');
+
+      const retryLogin = await promptConfirm(rl, 'Try a different token?', true);
+      if (retryLogin) {
+        client.destroy();
+        ln('');
+        info('Run the wizard again:');
+        ln(`  ${c.cyan}$${c.reset} npx @quadslab.io/discord-mcp init`);
+        ln('');
+      }
       client.destroy();
       return;
     }
 
     // ── Step 4: Invite bot ──
+    await sleep(200);
     stepHeader(4, TOTAL_STEPS, 'Invite Bot to Server');
 
     const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${appId}&scope=bot+applications.commands&permissions=${PERMISSION_INTEGER}`;
@@ -392,6 +477,7 @@ async function runInit(): Promise<void> {
     }
 
     // ── Step 5: Select guild ──
+    await sleep(200);
     stepHeader(5, TOTAL_STEPS, 'Select Your Server');
 
     let selectedGuild: Guild;
@@ -399,11 +485,21 @@ async function runInit(): Promise<void> {
     if (guilds.length === 1) {
       selectedGuild = guilds[0]!;
       success(`Auto-selected ${c.bold}${selectedGuild.name}${c.reset}`);
-      info(`ID: ${selectedGuild.id} | Members: ${selectedGuild.memberCount}`);
+      // Show richer guild info
+      const guildInfo: string[] = [];
+      guildInfo.push(`${c.dim}ID:${c.reset} ${selectedGuild.id}`);
+      guildInfo.push(`${c.dim}Members:${c.reset} ${selectedGuild.memberCount}`);
+      if (selectedGuild.premiumTier > 0) {
+        const boostLabels = ['', 'Level 1', 'Level 2', 'Level 3'];
+        guildInfo.push(`${c.magentaBright}⬆ Boost ${boostLabels[selectedGuild.premiumTier]}${c.reset}`);
+      }
+      info(`  ${guildInfo.join(`  ${c.gray}│${c.reset}  `)}`);
     } else {
-      const guildItems = guilds.map(g =>
-        `${c.bold}${g.name}${c.reset} ${c.gray}(${g.id} • ${g.memberCount} members)${c.reset}`
-      );
+      // Richer guild display with boost indicators
+      const guildItems = guilds.map(g => {
+        const boost = g.premiumTier > 0 ? ` ${c.magentaBright}⬆${g.premiumTier}${c.reset}` : '';
+        return `${c.bold}${g.name}${c.reset}${boost} ${c.gray}(${g.memberCount} members)${c.reset}`;
+      });
       const idx = await promptSelect(rl, guildItems, `Select a server (1-${guilds.length}):`);
 
       if (isNaN(idx) || idx < 0 || idx >= guilds.length) {
@@ -414,6 +510,45 @@ async function runInit(): Promise<void> {
 
       selectedGuild = guilds[idx]!;
       success(`Selected ${c.bold}${selectedGuild.name}${c.reset}`);
+    }
+
+    // ── Quick permission check ──
+    ln('');
+    const permSpinner = createSpinner('Checking bot permissions...');
+
+    try {
+      const botMember = selectedGuild.members.cache.get(client.user!.id)
+        || await selectedGuild.members.fetch(client.user!.id);
+      const perms = botMember.permissions;
+
+      let permGranted = 0;
+      const permMissing: string[] = [];
+
+      for (const { flag, name } of REQUIRED_PERMISSIONS) {
+        if (perms.has(flag)) {
+          permGranted++;
+        } else {
+          permMissing.push(name);
+        }
+      }
+
+      permSpinner.stop();
+
+      const total = REQUIRED_PERMISSIONS.length;
+      if (permMissing.length === 0) {
+        success(`All ${total} permissions granted ${c.greenBright}✔${c.reset}`);
+      } else {
+        warn(`${permGranted}/${total} permissions — missing ${permMissing.length}`);
+        for (const name of permMissing.slice(0, 3)) {
+          ln(`    ${c.redBright}✖${c.reset} ${c.dim}${name}${c.reset}`);
+        }
+        if (permMissing.length > 3) {
+          ln(`    ${c.dim}...and ${permMissing.length - 3} more (run ${c.bold}discord-mcp check${c.reset}${c.dim} for full list)${c.reset}`);
+        }
+      }
+    } catch {
+      permSpinner.stop();
+      info('Could not check permissions (run discord-mcp check later)');
     }
 
     client.destroy();
@@ -610,36 +745,61 @@ async function runInit(): Promise<void> {
     // ── Done ──
     ln('');
     divider();
+    await sleep(300);
     ln('');
-    ln(`  ${c.greenBright}${c.bold}Setup complete!${c.reset}  ${c.gray}🎉${c.reset}`);
+
+    // Animated completion banner
+    out('  ');
+    await typewrite('✔', 0);
+    out(`${c.greenBright}${c.bold}`);
+    await typewrite('  Setup complete!', 40);
+    out(c.reset);
+    ln('');
+    ln('');
+
+    // Summary card — recap everything that was configured
+    const summaryLines: string[] = [
+      `${c.bold}${c.whiteBright}Configuration Summary${c.reset}`,
+      ``,
+      `${c.dim}Bot:${c.reset}     ${c.bold}${masked}${c.reset}`,
+      `${c.dim}Server:${c.reset}  ${c.bold}${selectedGuild.name}${c.reset} ${c.gray}(${selectedGuild.id})${c.reset}`,
+    ];
+    if (configured > 0) {
+      const clientNames = selectedClients.map(cl => cl.label).join(', ');
+      summaryLines.push(`${c.dim}Clients:${c.reset} ${c.bold}${clientNames}${c.reset} ${c.greenBright}✔${c.reset}`);
+    } else {
+      summaryLines.push(`${c.dim}Clients:${c.reset} ${c.yellowBright}Manual config needed${c.reset}`);
+    }
+
+    box(summaryLines, c.cyan);
     ln('');
 
     // Tailor next steps to what was configured
     const nextSteps: string[] = [`${c.bold}Next steps:${c.reset}`, ``];
 
     if (selectedClients.some(cl => cl.name === 'claude-code')) {
-      nextSteps.push(`${c.cyanBright}Claude Code:${c.reset}  Type ${c.bold}/mcp${c.reset} to connect`);
+      nextSteps.push(`${c.cyanBright}Claude Code:${c.reset}    Type ${c.bold}/mcp${c.reset} to connect`);
     }
     if (selectedClients.some(cl => cl.name === 'claude-desktop')) {
       nextSteps.push(`${c.cyanBright}Claude Desktop:${c.reset} Restart the app to load the server`);
     }
     if (selectedClients.some(cl => cl.name === 'cursor')) {
-      nextSteps.push(`${c.cyanBright}Cursor:${c.reset}  Reload window or restart to connect`);
+      nextSteps.push(`${c.cyanBright}Cursor:${c.reset}         Reload window or restart to connect`);
     }
     if (selectedClients.some(cl => cl.name === 'windsurf')) {
-      nextSteps.push(`${c.cyanBright}Windsurf:${c.reset} Reload window or restart to connect`);
+      nextSteps.push(`${c.cyanBright}Windsurf:${c.reset}       Reload window or restart to connect`);
     }
     if (nextSteps.length === 2) {
       nextSteps.push(`Add the config to your MCP client and restart it`);
     }
 
     nextSteps.push(``);
-    nextSteps.push(`${c.dim}Try: "List all channels in my Discord server"${c.reset}`);
+    nextSteps.push(`${c.dim}Try asking:${c.reset} ${c.italic}"List all channels in my Discord server"${c.reset}`);
 
     box(nextSteps, c.green);
     ln('');
-    ln(`  ${c.gray}Docs:${c.reset}  ${c.underline}${c.blueBright}https://github.com/HardHeadHackerHead/discord-mcp${c.reset}`);
-    ln(`  ${c.gray}Help:${c.reset}  ${c.bold}discord-mcp check${c.reset} ${c.dim}— verify permissions${c.reset}`);
+    ln(`  ${c.gray}Docs${c.reset}   ${c.underline}${c.blueBright}https://github.com/HardHeadHackerHead/discord-mcp${c.reset}`);
+    ln(`  ${c.gray}Help${c.reset}   ${c.bold}npx @quadslab.io/discord-mcp check${c.reset}`);
     ln('');
     ln(`  ${c.dim}Made with ♥ by${c.reset} ${LOGO_MINI}`);
     ln('');

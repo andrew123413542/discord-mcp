@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-22
+
+### Added
+
+- Typewriter animation effect on the welcome message for a polished first impression
+- Token format pre-validation — detects malformed tokens before attempting Discord login
+- Retry loop on invalid token — users can paste a new token without restarting the wizard
+- Quick permission pre-check built into `init` — shows pass/fail summary right after guild selection
+- Configuration summary card at the end of setup showing bot, server, and clients configured
+- Staged spinner messages during connection (`Resolving gateway...` → `Authenticating...` → `Fetching servers...`)
+- Richer guild selection display with boost level indicators
+- Smooth animated transitions between wizard steps
+
+### Improved
+
+- Spinner now supports `.update()` to change its message mid-animation
+- Completion banner uses typewriter animation for a satisfying finish
+- Guild info shows boost tier, member count, and ID in a formatted row
+- Next steps box has cleaner column alignment for all client names
+- Authentication failure now offers to retry instead of exiting immediately
+- Help text updated to say "any MCP client" instead of just Claude Code
+
 ## [1.3.1] - 2026-02-22
 
 ### Added
