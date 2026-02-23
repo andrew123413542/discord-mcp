@@ -331,7 +331,7 @@ async function runInit(): Promise<void> {
   const TOTAL_STEPS = 6;
 
   try {
-    // ── Welcome ──
+    // ── Welcome + Step 1 on the same screen ──
     clearScreen();
     ln(LOGO);
     out('  ');
@@ -347,10 +347,16 @@ async function runInit(): Promise<void> {
     ln(`  ${c.dim}Web${c.reset}     ${c.underline}${c.blueBright}https://QuadsLab.io${c.reset}`);
     ln(`  ${c.dim}Discord${c.reset} ${c.underline}${c.blueBright}https://discord.gg/sjnb8wWGCJ${c.reset}`);
     ln('');
-    await sleep(500);
+    divider();
+    ln('');
 
-    // ── Step 1: Bot token ──
-    stepHeader(1, TOTAL_STEPS, 'Discord Bot Token');
+    // Step 1 question lives on the welcome screen — no clear
+    const step1Dots = Array.from({ length: TOTAL_STEPS }, (_, i) =>
+      i === 0 ? `${c.cyanBright}●${c.reset}` : `${c.gray}○${c.reset}`
+    ).join(' ');
+    ln(`  ${step1Dots}  ${c.gray}(1/${TOTAL_STEPS})${c.reset}`);
+    ln(`  ${c.bold}${c.whiteBright}Discord Bot Token${c.reset}`);
+    ln('');
 
     const hasBot = await promptConfirm(rl, 'Do you already have a Discord bot?', false);
 
