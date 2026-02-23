@@ -1,6 +1,6 @@
 # Discord MCP Server
 
-A Model Context Protocol (MCP) server that provides full Discord server administration through Claude Code. Built with Discord.js v14 and the MCP SDK, it exposes 99 tools covering every aspect of server management — from sending messages and managing roles to configuring auto-moderation rules, forums, stages, and scheduled events.
+A Model Context Protocol (MCP) server that provides full Discord server administration through Claude Code. Built with Discord.js v14 and the MCP SDK, it exposes 134 tools covering every aspect of server management — from sending messages and managing roles to configuring auto-moderation rules, forums, stages, and scheduled events.
 
 ## Quick Start
 
@@ -65,19 +65,25 @@ src/
     index.ts             # Tool registry — routes tool calls to category handlers
     utils.ts             # Fuzzy matching — smart name resolution for channels, roles, members
     guild.ts             # Server info tools (2)
-    roles.ts             # Role management tools (9)
-    channels.ts          # Channel management tools (16)
-    members.ts           # Member management tools (12)
-    messages.ts          # Messaging tools (13)
+    roles.ts             # Role management tools (11)
+    channels.ts          # Channel management tools (20)
+    members.ts           # Member management tools (15)
+    messages.ts          # Messaging tools (14)
     reactions.ts         # Reaction tools (1)
-    server.ts            # Server admin tools (13)
-    threads.ts           # Thread management tools (7)
+    server.ts            # Server admin tools (16)
+    threads.ts           # Thread management tools (10)
     emojis.ts            # Emoji & sticker tools (7)
     webhooks.ts          # Webhook tools (4)
-    events.ts            # Scheduled event tools (4)
+    events.ts            # Scheduled event tools (5)
     automod.ts           # Auto-moderation tools (4)
     forums.ts            # Forum channel tools (5)
     stage.ts             # Stage instance tools (3)
+    polls.ts             # Poll tools (3)
+    dms.ts               # Direct message tools (2)
+    presence.ts          # Bot presence tools (2)
+    templates.ts         # Server template tools (4)
+    commands.ts          # Application command tools (4)
+    onboarding.ts        # Onboarding tools (2)
 ```
 
 ### Key Design Features
@@ -124,7 +130,7 @@ Three read-only resources are available:
 | `list_guilds` | List all servers the bot is a member of |
 | `get_guild_info` | Detailed server info — member count, channels, roles, features, boost tier |
 
-### Roles (9 tools)
+### Roles (11 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -137,8 +143,10 @@ Three read-only resources are available:
 | `set_role_icon` | Set a Unicode emoji or image as the role icon (requires boost level 2+) |
 | `assign_role` | Add a role to a member |
 | `remove_role` | Remove a role from a member |
+| `list_role_members` | List all members who have a specific role |
+| `list_member_permissions` | List all effective permissions for a member across the server |
 
-### Channels (16 tools)
+### Channels (20 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -158,8 +166,12 @@ Three read-only resources are available:
 | `reorder_channels` | Reorder channels by specifying new positions |
 | `set_voice_region` | Set the RTC region for a voice channel |
 | `follow_announcement_channel` | Follow an announcement channel to cross-post into another channel |
+| `check_permissions` | Check what permissions the bot or a user has in a specific channel |
+| `copy_channel_permissions` | Copy permission overwrites from one channel to another |
+| `set_voice_status` | Set or clear the status text on a voice channel |
+| `list_voice_members` | List all members currently connected to a voice channel |
 
-### Members (12 tools)
+### Members (15 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -175,8 +187,11 @@ Three read-only resources are available:
 | `set_nickname` | Change a member's nickname or reset it |
 | `move_to_voice` | Move a member to a different voice channel |
 | `disconnect_from_voice` | Disconnect a member from their voice channel |
+| `search_members` | Search for members by username, nickname, or role with advanced filters |
+| `bulk_ban` | Ban multiple members at once with optional message deletion |
+| `purge_user_messages` | Delete all recent messages from a specific user across channels |
 
-### Messages (13 tools)
+### Messages (14 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -184,6 +199,7 @@ Three read-only resources are available:
 | `get_message` | Fetch a single message by ID with full details |
 | `send_message` | Send a text message, optionally as a reply |
 | `send_embed` | Send a rich embed with title, fields, images, and footer |
+| `send_message_with_file` | Send a message with a file attachment from a URL or local path |
 | `edit_message` | Edit a message previously sent by the bot |
 | `delete_message` | Delete a single message by ID |
 | `bulk_delete_messages` | Delete 2-100 messages at once (< 14 days old), optionally filtered by user |
@@ -200,7 +216,7 @@ Three read-only resources are available:
 |------|-------------|
 | `get_reactions` | Get all reactions on a message with full reactor details — account creation date, server join date, roles, avatar, boost status. Optionally filter by emoji. |
 
-### Server Admin (13 tools)
+### Server Admin (16 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -208,6 +224,7 @@ Three read-only resources are available:
 | `list_invites` | List all active invite links with usage stats and expiration |
 | `create_invite` | Generate a new invite with configurable max age, uses, and temporary flag |
 | `delete_invite` | Revoke an invite by code |
+| `get_invite` | Get detailed info about a specific invite by code |
 | `get_audit_log` | Fetch audit log entries, optionally filtered by action type or user |
 | `list_bans` | View all banned users with reasons |
 | `get_welcome_screen` | Get the server welcome screen configuration |
@@ -217,8 +234,10 @@ Three read-only resources are available:
 | `get_vanity_url` | Get the server vanity URL (requires VANITY_URL feature) |
 | `list_integrations` | List all integrations (bots, apps) connected to the server |
 | `delete_integration` | Remove an integration from the server |
+| `get_server_icon` | Get the server's icon URL in multiple sizes |
+| `set_server_icon` | Set the server's icon from a URL |
 
-### Threads (7 tools)
+### Threads (10 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -229,6 +248,9 @@ Three read-only resources are available:
 | `delete_thread` | Delete a thread |
 | `lock_thread` | Lock a thread (prevent new messages without archiving) |
 | `unlock_thread` | Unlock a thread |
+| `add_thread_member` | Add a member to a thread |
+| `remove_thread_member` | Remove a member from a thread |
+| `list_thread_members` | List all members in a thread |
 
 ### Forums (5 tools)
 
@@ -261,7 +283,7 @@ Three read-only resources are available:
 | `delete_webhook` | Delete a webhook by ID |
 | `send_webhook_message` | Send a message via webhook with optional name/avatar override |
 
-### Scheduled Events (4 tools)
+### Scheduled Events (5 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -269,6 +291,7 @@ Three read-only resources are available:
 | `create_event` | Create a voice, stage, or external event with start/end times |
 | `edit_event` | Modify an event's name, description, times, or status |
 | `delete_event` | Delete a scheduled event |
+| `get_event_subscribers` | Get a list of users who have subscribed to a scheduled event |
 
 ### Stage Instances (3 tools)
 
@@ -286,6 +309,53 @@ Three read-only resources are available:
 | `create_automod_rule` | Create a rule — keyword filter, spam detection, keyword presets, or mention spam |
 | `edit_automod_rule` | Modify a rule's keywords, actions, exemptions, or enabled state |
 | `delete_automod_rule` | Delete an automod rule |
+
+### Polls (3 tools)
+
+| Tool | Description |
+|------|-------------|
+| `send_poll` | Send a poll with a question and multiple-choice answers |
+| `get_poll_results` | Get the current results of a poll |
+| `end_poll` | End a poll early and finalize the results |
+
+### Direct Messages (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `send_dm` | Send a direct message to a user |
+| `send_dm_embed` | Send a rich embed as a direct message to a user |
+
+### Bot Presence (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `set_bot_status` | Set the bot's online status and activity (playing, watching, etc.) |
+| `get_bot_info` | Get information about the bot user including avatar, ID, and status |
+
+### Server Templates (4 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_templates` | List all server templates |
+| `create_template` | Create a new server template from the current server state |
+| `delete_template` | Delete a server template |
+| `sync_template` | Sync a server template with the current server state |
+
+### Application Commands (4 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_commands` | List all registered application (slash) commands |
+| `create_command` | Register a new application command |
+| `edit_command` | Edit an existing application command |
+| `delete_command` | Delete an application command |
+
+### Onboarding (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `get_onboarding` | Get the server onboarding configuration |
+| `edit_onboarding` | Edit the server onboarding prompts and default channels |
 
 ---
 

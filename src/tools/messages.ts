@@ -1,5 +1,5 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { EmbedBuilder, ColorResolvable, ChannelType, TextChannel, Collection, Message } from 'discord.js';
+import { EmbedBuilder, ColorResolvable, ChannelType, TextChannel, Collection, Message, AttachmentBuilder } from 'discord.js';
 import { smartFindTextChannel } from './utils.js';
 import { getGuild } from '../discord-client.js';
 
@@ -320,6 +320,20 @@ export const messageTools: Tool[] = [
       required: ['channel', 'messageId'],
     },
   },
+  {
+    name: 'send_message_with_file',
+    description: 'Send a message with a file attachment to a channel. The file can be specified by URL.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channel: { type: 'string', description: 'Channel name, ID, or mention' },
+        content: { type: 'string', description: 'Message text content (optional if file is provided)' },
+        fileUrl: { type: 'string', description: 'URL of the file to attach' },
+        fileName: { type: 'string', description: 'Name for the attached file (e.g. "image.png")' },
+      },
+      required: ['channel', 'fileUrl'],
+    },
+  },
 ];
 
 export async function executeMessageTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -350,6 +364,8 @@ export async function executeMessageTool(name: string, args: Record<string, unkn
       return await addReaction(args);
     case 'remove_reaction':
       return await removeReaction(args);
+    case 'send_message_with_file':
+      return await sendMessageWithFile(args);
     default:
       throw new Error(`Unknown message tool: ${name}`);
   }
@@ -724,6 +740,52 @@ async function editMessage(args: Record<string, unknown>): Promise<string> {
       id: edited.id,
       content: edited.content,
       editedAt: edited.editedAt?.toISOString() ?? null,
+    },
+  }, null, 2);
+}
+
+async function sendMessageWithFile(args: Record<string, unknown>): Promise<string> {
+  const channelIdentifier = args['channel'] as string;
+  const content = args['content'] as string | undefined;
+  const fileUrl = args['fileUrl'] as string;
+  const fileName = args['fileName'] as string | undefined;
+
+  const channel = await smartFindTextChannel(channelIdentifier);
+
+  const attachment = new AttachmentBuilder(fileUrl, { name: fileName ?? undefined });
+
+  const messageOptions: { content?: string; files: AttachmentBuilder[] } = {
+    files: [attachment],
+  };
+
+  if (content) {
+    messageOptions.content = content;
+  }
+
+  const message = await channel.send(messageOptions);
+
+  const isVoice = channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice;
+  const channelPrefix = isVoice ? '🔊' : '#';
+
+  return JSON.stringify({
+    success: true,
+    message: `Message with file sent to ${channelPrefix}${channel.name}`,
+    sentMessage: {
+      id: message.id,
+      content: message.content || null,
+      channel: {
+        id: channel.id,
+        name: channel.name,
+        type: isVoice ? 'voice' : 'text',
+      },
+      attachments: message.attachments.map(a => ({
+        id: a.id,
+        name: a.name,
+        url: a.url,
+        size: a.size,
+        contentType: a.contentType,
+      })),
+      createdAt: message.createdAt.toISOString(),
     },
   }, null, 2);
 }

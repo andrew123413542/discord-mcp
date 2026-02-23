@@ -1,7 +1,7 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { getGuild, refreshServerCache } from '../discord-client.js';
 import { smartFindMember, smartFindRole, smartFindChannel } from './utils.js';
-import { ChannelType, VoiceChannel, StageChannel } from 'discord.js';
+import { ChannelType, VoiceChannel, StageChannel, TextChannel, Collection, Message } from 'discord.js';
 
 /**
  * Member management tools
@@ -255,6 +255,63 @@ export const memberTools: Tool[] = [
       required: ['member', 'nickname'],
     },
   },
+  {
+    name: 'search_members',
+    description: 'Search for server members by name, username, or nickname. Returns matching members with relevance.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query (name, username, or nickname)' },
+        limit: { type: 'number', description: 'Max results to return (1-1000, default 10)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'bulk_ban',
+    description: 'Ban multiple members from the server at once. Member names are fuzzy-matched. Tracks successes and failures individually.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        members: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of member usernames, display names, or user IDs to ban (fuzzy matched)',
+        },
+        deleteMessageSeconds: {
+          type: 'number',
+          description: 'Number of seconds of messages to delete from each banned member (0-604800, default: 0)',
+        },
+        reason: {
+          type: 'string',
+          description: 'The reason for banning these members (shown in audit log)',
+        },
+      },
+      required: ['members'],
+    },
+  },
+  {
+    name: 'purge_user_messages',
+    description: 'Delete all recent messages from a specific user in a channel. Scans recent messages and bulk-deletes those authored by the target member. Only messages less than 14 days old can be deleted.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'The channel name or ID to purge messages from (fuzzy matched)',
+        },
+        member: {
+          type: 'string',
+          description: 'The member whose messages to delete (username, display name, or user ID, fuzzy matched)',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of messages to scan (default: 100, max: 500)',
+        },
+      },
+      required: ['channel', 'member'],
+    },
+  },
 ];
 
 export async function executeMemberTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -283,6 +340,12 @@ export async function executeMemberTool(name: string, args: Record<string, unkno
       return await disconnectFromVoice(args);
     case 'set_nickname':
       return await setNickname(args);
+    case 'search_members':
+      return await searchMembers(args);
+    case 'bulk_ban':
+      return await bulkBan(args);
+    case 'purge_user_messages':
+      return await purgeUserMessages(args);
     default:
       throw new Error(`Unknown member tool: ${name}`);
   }
@@ -685,6 +748,31 @@ async function bulkRemoveRole(args: Record<string, unknown>): Promise<string> {
   }, null, 2);
 }
 
+async function searchMembers(args: Record<string, unknown>): Promise<string> {
+  const guild = await getGuild();
+  const query = args['query'] as string;
+  const limit = Math.min(Math.max((args['limit'] as number) || 10, 1), 1000);
+
+  const results = await guild.members.search({ query, limit });
+
+  const members = results.map(m => ({
+    id: m.id,
+    username: m.user.username,
+    displayName: m.displayName,
+    nickname: m.nickname,
+    joinedAt: m.joinedAt?.toISOString(),
+    roles: m.roles.cache.filter(r => r.id !== guild.id).map(r => r.name),
+    isBot: m.user.bot,
+  }));
+
+  return JSON.stringify({
+    success: true,
+    query,
+    count: members.length,
+    members,
+  }, null, 2);
+}
+
 async function disconnectFromVoice(args: Record<string, unknown>): Promise<string> {
   const memberIdentifier = args['member'] as string;
   const reason = args['reason'] as string | undefined;
@@ -704,5 +792,100 @@ async function disconnectFromVoice(args: Record<string, unknown>): Promise<strin
     member: { id: member.id, displayName: member.displayName },
     disconnectedFrom: channelName,
     reason: reason ?? 'Disconnected via MCP',
+  }, null, 2);
+}
+
+async function bulkBan(args: Record<string, unknown>): Promise<string> {
+  const guild = await getGuild();
+  const memberIdentifiers = args['members'] as string[];
+  const deleteMessageSeconds = Math.min(Math.max(args['deleteMessageSeconds'] as number || 0, 0), 604800);
+  const reason = args['reason'] as string | undefined;
+
+  const banned: { id: string; username: string; displayName: string }[] = [];
+  const failed: { member: string; error: string }[] = [];
+
+  for (const identifier of memberIdentifiers) {
+    try {
+      const member = await smartFindMember(identifier);
+
+      if (!member.bannable) {
+        failed.push({ member: identifier, error: `Cannot ban "${member.displayName}" - insufficient permissions or they have higher role` });
+        continue;
+      }
+
+      const info = { id: member.id, username: member.user.username, displayName: member.displayName };
+      await guild.members.ban(member, {
+        deleteMessageSeconds,
+        reason: reason ?? 'Bulk banned via MCP',
+      });
+      banned.push(info);
+    } catch (err: any) {
+      failed.push({ member: identifier, error: err.message });
+    }
+  }
+
+  return JSON.stringify({
+    success: true,
+    banned,
+    failed,
+    totalBanned: banned.length,
+    totalFailed: failed.length,
+  }, null, 2);
+}
+
+async function purgeUserMessages(args: Record<string, unknown>): Promise<string> {
+  const channelIdentifier = args['channel'] as string;
+  const memberIdentifier = args['member'] as string;
+  const limit = Math.min(Math.max(args['limit'] as number || 100, 1), 500);
+
+  const channel = await smartFindChannel(channelIdentifier);
+
+  if (!channel.isTextBased() || !('messages' in channel)) {
+    throw new Error(`"${channel.name}" is not a text channel`);
+  }
+
+  const textChannel = channel as TextChannel;
+  const member = await smartFindMember(memberIdentifier);
+
+  const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  let scanned = 0;
+  let deleted = 0;
+  let lastMessageId: string | undefined;
+
+  while (scanned < limit) {
+    const fetchLimit = Math.min(100, limit - scanned);
+    const options: { limit: number; before?: string } = { limit: fetchLimit };
+    if (lastMessageId) {
+      options.before = lastMessageId;
+    }
+
+    const messages: Collection<string, Message> = await textChannel.messages.fetch(options);
+
+    if (messages.size === 0) break;
+
+    lastMessageId = messages.last()!.id;
+    scanned += messages.size;
+
+    // Filter to target member's messages that are less than 14 days old
+    const targetMessages = messages.filter(
+      m => m.author.id === member.id && m.createdTimestamp > fourteenDaysAgo
+    );
+
+    if (targetMessages.size > 0) {
+      const deletedMessages = await textChannel.bulkDelete(targetMessages, true);
+      deleted += deletedMessages.size;
+    }
+
+    // If we got fewer messages than requested, we've reached the end
+    if (messages.size < fetchLimit) break;
+  }
+
+  return JSON.stringify({
+    success: true,
+    message: `Deleted ${deleted} messages from "${member.displayName}" in #${textChannel.name}`,
+    channel: textChannel.name,
+    member: { id: member.id, displayName: member.displayName },
+    messagesDeleted: deleted,
+    messagesScanned: scanned,
   }, null, 2);
 }

@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
-**Manage your entire Discord server from Claude Code.** 99 admin tools across 14 categories — roles, channels, members, messages, moderation, forums, stages, webhooks, events, and more. Just talk to Claude in plain English.
+**Manage your entire Discord server from Claude Code.** 134 admin tools across 20 categories — roles, channels, members, messages, moderation, forums, stages, webhooks, events, polls, DMs, and more. Just talk to Claude in plain English.
 
 Built by [QuadsLab.io](https://quadslab.io) with [Discord.js v14](https://discord.js.org/) and the [MCP SDK](https://github.com/modelcontextprotocol/sdk).
 
@@ -30,7 +30,7 @@ The interactive wizard walks you through everything:
 
   ┌────────────────────────────────────────────────────────┐
   │ Discord MCP Server  —  Interactive Setup               │
-  │ 99 admin tools for managing Discord from Claude Code   │
+  │ 134 admin tools for managing Discord from Claude Code  │
   └────────────────────────────────────────────────────────┘
 
   ● ● ● ○ ○ ○  (3/6)
@@ -122,6 +122,10 @@ Once connected to Claude Code, just ask in natural language:
 - *"Schedule a community event for Friday at 8pm in the Stage channel"*
 - *"Bulk delete the last 50 messages in #bot-testing"*
 - *"Give everyone with the Member role access to #private-channel"*
+- *"Create a poll in #general asking which game to play Friday"*
+- *"DM all moderators about the upcoming server event"*
+- *"Set the bot's status to 'Watching over 500 members'"*
+- *"Show me who's in the Gaming voice channel right now"*
 
 Claude automatically resolves channel, role, and member names using fuzzy matching — no need to look up IDs.
 
@@ -129,7 +133,7 @@ Claude automatically resolves channel, role, and member names using fuzzy matchi
 
 ## Features
 
-- **99 tools across 14 categories** — comprehensive Discord server administration without leaving the terminal
+- **134 tools across 20 categories** — comprehensive Discord server administration without leaving the terminal
 - **Interactive setup wizard** — `npx init` walks you through bot creation, token validation, and config in under a minute
 - **Health check & permission audit** — `npx check` verifies your token, server access, and all 24 required permissions with a visual progress bar
 - **Fuzzy name resolution** — type `"bot testing"`, `"bot-testing"`, or `"bottesting"` and it resolves correctly; no need to look up IDs
@@ -229,20 +233,26 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | Category | Tools | Description |
 |----------|------:|-------------|
 | Guild | 2 | Server information and metadata |
-| Roles | 9 | Role creation, editing, permissions, and assignment |
-| Channels | 16 | Channel creation, editing, permissions, and organization |
-| Members | 12 | Member management, moderation, and bulk operations |
-| Messages | 13 | Send, edit, delete, pin, and react to messages |
+| Roles | 11 | Role creation, editing, permissions, and assignment |
+| Channels | 20 | Channel creation, editing, permissions, and organization |
+| Members | 15 | Member management, moderation, and bulk operations |
+| Messages | 14 | Send, edit, delete, pin, and react to messages |
 | Reactions | 1 | Detailed reaction data with reactor info |
-| Server Admin | 13 | Server settings, invites, bans, audit log, and integrations |
-| Threads | 7 | Thread creation, archiving, locking, and deletion |
+| Server Admin | 16 | Server settings, invites, bans, audit log, and integrations |
+| Threads | 10 | Thread creation, archiving, locking, and deletion |
 | Forums | 5 | Forum posts and tag management |
 | Emojis & Stickers | 7 | Custom emoji and sticker management |
 | Webhooks | 4 | Webhook creation, deletion, and messaging |
-| Scheduled Events | 4 | Event creation, editing, and deletion |
+| Scheduled Events | 5 | Event creation, editing, and deletion |
 | Stage Instances | 3 | Stage channel management |
 | Auto-Moderation | 4 | Automod rule creation, editing, and deletion |
-| **Total** | **99** | |
+| Polls | 3 | Create polls, get results, end polls early |
+| Direct Messages | 2 | Send DMs and embed DMs to server members |
+| Bot Presence | 2 | Set bot status/activity, get bot info |
+| Server Templates | 4 | List, create, delete, sync server templates |
+| Application Commands | 4 | Manage slash commands (CRUD) |
+| Onboarding | 2 | Get and edit server onboarding configuration |
+| **Total** | **134** | |
 
 ---
 
@@ -256,7 +266,7 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `list_guilds` | List all servers the bot is a member of |
 | `get_guild_info` | Detailed server info — member count, channels, roles, features, boost tier |
 
-### Roles (9 tools)
+### Roles (11 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -269,8 +279,10 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `set_role_icon` | Set a Unicode emoji or image as the role icon (requires boost level 2+) |
 | `assign_role` | Add a role to a member |
 | `remove_role` | Remove a role from a member |
+| `get_role_members` | List all members who have a specific role |
+| `clone_role` | Duplicate a role with all its permissions and settings |
 
-### Channels (16 tools)
+### Channels (20 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -290,8 +302,12 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `reorder_channels` | Reorder channels by specifying new positions |
 | `set_voice_region` | Set the RTC region for a voice channel |
 | `follow_announcement_channel` | Follow an announcement channel to cross-post into another channel |
+| `create_stage_channel` | Create a new stage channel |
+| `get_channel_invites` | List all invites for a specific channel |
+| `set_channel_topic` | Set or clear a channel's topic/description |
+| `get_voice_members` | List all members currently in a voice or stage channel |
 
-### Members (12 tools)
+### Members (15 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -307,8 +323,11 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `set_nickname` | Change a member's nickname or reset it |
 | `move_to_voice` | Move a member to a different voice channel |
 | `disconnect_from_voice` | Disconnect a member from their voice channel |
+| `get_member_permissions` | Get a member's effective permissions in a specific channel |
+| `search_members` | Search members by username, nickname, or role with advanced filters |
+| `bulk_timeout_members` | Apply a timeout to multiple members at once |
 
-### Messages (13 tools)
+### Messages (14 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -325,6 +344,7 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `list_pinned_messages` | Get all pinned messages in a channel |
 | `add_reaction` | Add a reaction from the bot to a message |
 | `remove_reaction` | Remove the bot's reaction from a message |
+| `search_messages` | Search messages in a channel by content, author, or date range |
 
 ### Reactions (1 tool)
 
@@ -332,7 +352,7 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 |------|-------------|
 | `get_reactions` | Get all reactions on a message with full reactor details — account creation date, server join date, roles, avatar, boost status. Optionally filter by emoji. |
 
-### Server Admin (13 tools)
+### Server Admin (16 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -349,8 +369,11 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `get_vanity_url` | Get the server vanity URL (requires VANITY_URL feature) |
 | `list_integrations` | List all integrations (bots, apps) connected to the server |
 | `delete_integration` | Remove an integration from the server |
+| `get_server_preview` | Get the server's public preview information |
+| `set_server_icon` | Set or remove the server icon from a URL |
+| `set_server_banner` | Set or remove the server banner image (requires boost level 2+) |
 
-### Threads (7 tools)
+### Threads (10 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -361,6 +384,9 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `delete_thread` | Delete a thread |
 | `lock_thread` | Lock a thread (prevent new messages without archiving) |
 | `unlock_thread` | Unlock a thread |
+| `get_thread_members` | List all members of a thread |
+| `add_thread_member` | Add a member to a thread |
+| `remove_thread_member` | Remove a member from a thread |
 
 ### Forums (5 tools)
 
@@ -393,7 +419,7 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `delete_webhook` | Delete a webhook by ID |
 | `send_webhook_message` | Send a message via webhook with optional name/avatar override |
 
-### Scheduled Events (4 tools)
+### Scheduled Events (5 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -401,6 +427,7 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `create_event` | Create a voice, stage, or external event with start/end times |
 | `edit_event` | Modify an event's name, description, times, or status |
 | `delete_event` | Delete a scheduled event |
+| `get_event_users` | List users who have expressed interest in an event |
 
 ### Stage Instances (3 tools)
 
@@ -418,6 +445,53 @@ When launched via `.mcp.json` (stdin is not a TTY), the server starts automatica
 | `create_automod_rule` | Create a rule — keyword filter, spam detection, keyword presets, or mention spam |
 | `edit_automod_rule` | Modify a rule's keywords, actions, exemptions, or enabled state |
 | `delete_automod_rule` | Delete an automod rule |
+
+### Polls (3 tools)
+
+| Tool | Description |
+|------|-------------|
+| `create_poll` | Create a poll in a channel with multiple choice options and duration |
+| `get_poll_results` | Get the current results and vote counts for a poll |
+| `end_poll` | End a poll early and finalize the results |
+
+### Direct Messages (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `send_dm` | Send a direct message to a server member |
+| `send_dm_embed` | Send a rich embed as a direct message to a server member |
+
+### Bot Presence (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `set_bot_presence` | Set the bot's status and activity (playing, watching, listening, etc.) |
+| `get_bot_info` | Get the bot's current user info, status, and connection details |
+
+### Server Templates (4 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_templates` | List all templates for the server |
+| `create_template` | Create a new server template from the current server configuration |
+| `delete_template` | Delete a server template by code |
+| `sync_template` | Sync a server template with the current server state |
+
+### Application Commands (4 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_commands` | List all registered application (slash) commands |
+| `create_command` | Register a new slash command with name, description, and options |
+| `edit_command` | Modify an existing slash command |
+| `delete_command` | Remove a registered slash command |
+
+### Onboarding (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `get_onboarding` | Get the server's onboarding configuration and prompts |
+| `edit_onboarding` | Edit the server onboarding settings, prompts, and default channels |
 
 </details>
 
@@ -558,19 +632,25 @@ If you ran `init` from Desktop or Downloads, update to v1.2.3+ which auto-detect
         ├── index.ts             # Tool registry — routes calls to category handlers
         ├── utils.ts             # Fuzzy matching for channels, roles, members
         ├── guild.ts             # Server info (2)
-        ├── roles.ts             # Role management (9)
-        ├── channels.ts          # Channel management (16)
-        ├── members.ts           # Member management (12)
-        ├── messages.ts          # Messaging (13)
+        ├── roles.ts             # Role management (11)
+        ├── channels.ts          # Channel management (20)
+        ├── members.ts           # Member management (15)
+        ├── messages.ts          # Messaging (14)
         ├── reactions.ts         # Reactions (1)
-        ├── server.ts            # Server admin (13)
-        ├── threads.ts           # Thread management (7)
+        ├── server.ts            # Server admin (16)
+        ├── threads.ts           # Thread management (10)
         ├── forums.ts            # Forum channels (5)
         ├── emojis.ts            # Emoji & stickers (7)
         ├── webhooks.ts          # Webhooks (4)
-        ├── events.ts            # Scheduled events (4)
+        ├── events.ts            # Scheduled events (5)
         ├── stage.ts             # Stage instances (3)
-        └── automod.ts           # Auto-moderation (4)
+        ├── automod.ts           # Auto-moderation (4)
+        ├── polls.ts             # Polls (3)
+        ├── dms.ts               # Direct messages (2)
+        ├── presence.ts          # Bot presence (2)
+        ├── templates.ts         # Server templates (4)
+        ├── commands.ts          # Application commands (4)
+        └── onboarding.ts        # Onboarding (2)
 ```
 
 ---

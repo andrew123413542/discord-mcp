@@ -1,6 +1,6 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { getGuild } from '../discord-client.js';
-import { smartFindTextChannel } from './utils.js';
+import { smartFindTextChannel, smartFindChannel, smartFindMember } from './utils.js';
 import { ChannelType, ThreadChannel, ThreadAutoArchiveDuration } from 'discord.js';
 
 /**
@@ -142,6 +142,56 @@ export const threadTools: Tool[] = [
       required: ['thread'],
     },
   },
+  {
+    name: 'add_thread_member',
+    description: 'Add a member to a thread.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        thread: {
+          type: 'string',
+          description: 'The thread name or ID to add the member to',
+        },
+        member: {
+          type: 'string',
+          description: 'The member name or ID to add to the thread',
+        },
+      },
+      required: ['thread', 'member'],
+    },
+  },
+  {
+    name: 'remove_thread_member',
+    description: 'Remove a member from a thread.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        thread: {
+          type: 'string',
+          description: 'The thread name or ID to remove the member from',
+        },
+        member: {
+          type: 'string',
+          description: 'The member name or ID to remove from the thread',
+        },
+      },
+      required: ['thread', 'member'],
+    },
+  },
+  {
+    name: 'list_thread_members',
+    description: 'List all members in a thread.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        thread: {
+          type: 'string',
+          description: 'The thread name or ID to list members for',
+        },
+      },
+      required: ['thread'],
+    },
+  },
 ];
 
 export async function executeThreadTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -160,6 +210,12 @@ export async function executeThreadTool(name: string, args: Record<string, unkno
       return await lockThread(args);
     case 'unlock_thread':
       return await unlockThread(args);
+    case 'add_thread_member':
+      return await addThreadMember(args);
+    case 'remove_thread_member':
+      return await removeThreadMember(args);
+    case 'list_thread_members':
+      return await listThreadMembers(args);
     default:
       throw new Error(`Unknown thread tool: ${name}`);
   }
@@ -371,5 +427,83 @@ async function unlockThread(args: Record<string, unknown>): Promise<string> {
     success: true,
     message: `Thread "${thread.name}" unlocked successfully`,
     thread: formatThread(thread),
+  }, null, 2);
+}
+
+async function addThreadMember(args: Record<string, unknown>): Promise<string> {
+  const threadIdentifier = args['thread'] as string;
+  const memberIdentifier = args['member'] as string;
+
+  const channel = await smartFindChannel(threadIdentifier);
+  if (!channel.isThread()) {
+    throw new Error(`Channel "${channel.name}" is not a thread.`);
+  }
+  const thread = channel as ThreadChannel;
+
+  const guildMember = await smartFindMember(memberIdentifier);
+  await thread.members.add(guildMember.id);
+
+  return JSON.stringify({
+    success: true,
+    message: `Member "${guildMember.displayName}" added to thread "${thread.name}"`,
+    thread: formatThread(thread),
+    member: {
+      id: guildMember.id,
+      username: guildMember.user.username,
+      displayName: guildMember.displayName,
+    },
+  }, null, 2);
+}
+
+async function removeThreadMember(args: Record<string, unknown>): Promise<string> {
+  const threadIdentifier = args['thread'] as string;
+  const memberIdentifier = args['member'] as string;
+
+  const channel = await smartFindChannel(threadIdentifier);
+  if (!channel.isThread()) {
+    throw new Error(`Channel "${channel.name}" is not a thread.`);
+  }
+  const thread = channel as ThreadChannel;
+
+  const guildMember = await smartFindMember(memberIdentifier);
+  await thread.members.remove(guildMember.id);
+
+  return JSON.stringify({
+    success: true,
+    message: `Member "${guildMember.displayName}" removed from thread "${thread.name}"`,
+    thread: formatThread(thread),
+    member: {
+      id: guildMember.id,
+      username: guildMember.user.username,
+      displayName: guildMember.displayName,
+    },
+  }, null, 2);
+}
+
+async function listThreadMembers(args: Record<string, unknown>): Promise<string> {
+  const threadIdentifier = args['thread'] as string;
+
+  const channel = await smartFindChannel(threadIdentifier);
+  if (!channel.isThread()) {
+    throw new Error(`Channel "${channel.name}" is not a thread.`);
+  }
+  const thread = channel as ThreadChannel;
+
+  const members = await thread.members.fetch();
+
+  const memberList = members.map(member => ({
+    id: member.id,
+    username: member.user?.username ?? null,
+    displayName: member.guildMember?.displayName ?? null,
+    joinedThread: member.joinedTimestamp
+      ? new Date(member.joinedTimestamp).toISOString()
+      : null,
+  }));
+
+  return JSON.stringify({
+    success: true,
+    thread: { name: thread.name, id: thread.id },
+    memberCount: memberList.length,
+    members: memberList,
   }, null, 2);
 }

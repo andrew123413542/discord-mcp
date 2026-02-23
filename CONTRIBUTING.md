@@ -63,19 +63,25 @@ src/
     ├── index.ts         # Tool registry — routes calls to category handlers
     ├── utils.ts         # Fuzzy matching for channels, roles, members
     ├── guild.ts         # Server info (2 tools)
-    ├── roles.ts         # Role management (9 tools)
-    ├── channels.ts      # Channel management (16 tools)
-    ├── members.ts       # Member management (12 tools)
-    ├── messages.ts      # Messaging (13 tools)
+    ├── roles.ts         # Role management (11 tools)
+    ├── channels.ts      # Channel management (20 tools)
+    ├── members.ts       # Member management (15 tools)
+    ├── messages.ts      # Messaging (14 tools)
     ├── reactions.ts     # Reactions (1 tool)
-    ├── server.ts        # Server admin (13 tools)
-    ├── threads.ts       # Thread management (7 tools)
+    ├── server.ts        # Server admin (16 tools)
+    ├── threads.ts       # Thread management (10 tools)
     ├── forums.ts        # Forum channels (5 tools)
     ├── emojis.ts        # Emoji & stickers (7 tools)
     ├── webhooks.ts      # Webhooks (4 tools)
-    ├── events.ts        # Scheduled events (4 tools)
+    ├── events.ts        # Scheduled events (5 tools)
     ├── stage.ts         # Stage instances (3 tools)
-    └── automod.ts       # Auto-moderation (4 tools)
+    ├── automod.ts       # Auto-moderation (4 tools)
+    ├── polls.ts         # Polls (3 tools)
+    ├── dms.ts           # Direct messages (2 tools)
+    ├── presence.ts      # Bot presence (2 tools)
+    ├── templates.ts     # Server templates (4 tools)
+    ├── commands.ts      # Application commands (4 tools)
+    └── onboarding.ts    # Onboarding (2 tools)
 ```
 
 ---

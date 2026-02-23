@@ -51,17 +51,32 @@ const ln = (...args: string[]) => process.stderr.write(args.join('') + '\n');
 // ── Brand Art ────────────────────────────────────────────────────────
 
 const LOGO = `
-${c.cyanBright}${c.bold}    ____                  __     __          __       ${c.reset}
-${c.cyanBright}${c.bold}   / __ \\__  ______ _____/ /____/ /   ____ _/ /_      ${c.reset}
-${c.cyan}  / / / / / / / __ \`/ __  / ___/ /   / __ \`/ __ \\     ${c.reset}
-${c.cyan} / /_/ / /_/ / /_/ / /_/ (__  ) /___/ /_/ / /_/ /     ${c.reset}
-${c.magenta} \\___\\_\\__,_/\\__,_/\\__,_/____/_____/\\__,_/_.___/      ${c.reset}
-${c.magentaBright}${c.bold}                                          .io${c.reset}
+${c.cyanBright}${c.bold}   ██████╗ ██╗   ██╗ █████╗ ██████╗ ███████╗${c.reset}
+${c.cyanBright}${c.bold}  ██╔═══██╗██║   ██║██╔══██╗██╔══██╗██╔════╝${c.reset}
+${c.cyan}  ██║   ██║██║   ██║███████║██║  ██║███████╗${c.reset}
+${c.cyan}  ██║▄▄ ██║██║   ██║██╔══██║██║  ██║╚════██║${c.reset}
+${c.magenta}  ╚██████╔╝╚██████╔╝██║  ██║██████╔╝███████║${c.reset}
+${c.magenta}   ╚══▀▀═╝  ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝${c.reset}
+${c.magentaBright}${c.bold}        L A B ${c.dim}.io${c.reset}
 `;
 
 const LOGO_MINI = `${c.cyanBright}${c.bold}QuadsLab${c.magentaBright}.io${c.reset}`;
 
 const DISCORD_MCP_BADGE = `${c.gray}[${c.reset}${c.blueBright}discord-mcp${c.reset}${c.gray}]${c.reset}`;
+
+// ── Footer Links ────────────────────────────────────────────────────
+
+function printFooter(): void {
+  divider();
+  ln('');
+  ln(`  ${c.dim}Web${c.reset}       ${c.underline}${c.blueBright}https://QuadsLab.io${c.reset}`);
+  ln(`  ${c.dim}Discord${c.reset}   ${c.underline}${c.blueBright}https://discord.gg/sjnb8wWGCJ${c.reset}`);
+  ln(`  ${c.dim}GitHub${c.reset}    ${c.underline}${c.blueBright}https://github.com/HardHeadHackerHead/discord-mcp${c.reset}`);
+  ln(`  ${c.dim}npm${c.reset}       ${c.underline}${c.blueBright}https://www.npmjs.com/package/@quadslab.io/discord-mcp${c.reset}`);
+  ln('');
+  ln(`  ${c.dim}Made with ♥ by${c.reset} ${LOGO_MINI}`);
+  ln('');
+}
 
 // ── UI Components ────────────────────────────────────────────────────
 
@@ -82,16 +97,26 @@ function divider(): void {
   ln(`${c.gray}  ${'─'.repeat(52)}${c.reset}`);
 }
 
+function clearScreen(): void {
+  if (isColorSupported) {
+    out('\x1b[2J\x1b[H'); // Clear screen and move cursor to top-left
+  }
+}
+
 function stepHeader(current: number, total: number, title: string): void {
+  clearScreen();
+
+  // Persistent header: brand + progress bar
   ln('');
-  // Progress dots
   const dots = Array.from({ length: total }, (_, i) => {
     if (i < current - 1) return `${c.greenBright}●${c.reset}`;
     if (i === current - 1) return `${c.cyanBright}●${c.reset}`;
     return `${c.gray}○${c.reset}`;
   }).join(' ');
 
-  ln(`  ${dots}  ${c.gray}(${current}/${total})${c.reset}`);
+  ln(`  ${LOGO_MINI} ${DISCORD_MCP_BADGE}  ${dots}  ${c.gray}(${current}/${total})${c.reset}`);
+  divider();
+  ln('');
   ln(`  ${c.bold}${c.whiteBright}${title}${c.reset}`);
   ln('');
 }
@@ -307,16 +332,22 @@ async function runInit(): Promise<void> {
 
   try {
     // ── Welcome ──
+    clearScreen();
     ln(LOGO);
-    ln('');
     out('  ');
     await typewrite(`${c.bold}${c.whiteBright}Discord MCP Server${c.reset}`, 30);
     await typewrite(`  ${c.gray}—${c.reset}  `, 40);
     await typewrite(`${c.dim}Interactive Setup Wizard${c.reset}`, 20);
     ln('');
-    ln(`  ${c.dim}99 admin tools for managing Discord from any MCP client${c.reset}`);
+    ln(`  ${c.dim}134 admin tools across 20 categories${c.reset}`);
+    ln(`  ${c.dim}Manage your entire Discord server from any MCP client${c.reset}`);
     ln('');
-    await sleep(300);
+    divider();
+    ln('');
+    ln(`  ${c.dim}Web${c.reset}     ${c.underline}${c.blueBright}https://QuadsLab.io${c.reset}`);
+    ln(`  ${c.dim}Discord${c.reset} ${c.underline}${c.blueBright}https://discord.gg/sjnb8wWGCJ${c.reset}`);
+    ln('');
+    await sleep(500);
 
     // ── Step 1: Bot token ──
     stepHeader(1, TOTAL_STEPS, 'Discord Bot Token');
@@ -445,7 +476,39 @@ async function runInit(): Promise<void> {
     await sleep(200);
     stepHeader(4, TOTAL_STEPS, 'Invite Bot to Server');
 
-    const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${appId}&scope=bot+applications.commands&permissions=${PERMISSION_INTEGER}`;
+    // Ask for permission level
+    box([
+      `${c.bold}Bot Permission Level${c.reset}`,
+      ``,
+      `${c.cyanBright}Administrator${c.reset} gives the bot full access.`,
+      `No role hierarchy issues, no missing permissions.`,
+      ``,
+      `${c.cyanBright}Granular${c.reset} gives only the 24 specific permissions`,
+      `the tools need. More restrictive but may hit role`,
+      `hierarchy issues if the bot's role isn't high enough.`,
+    ], c.blue);
+    ln('');
+
+    const permItems = [
+      `${c.bold}Administrator${c.reset} ${c.dim}(Recommended — avoids permission issues)${c.reset}`,
+      `${c.bold}Granular${c.reset} ${c.dim}(24 specific permissions only)${c.reset}`,
+    ];
+    const permChoice = await promptSelect(rl, permItems, 'Permission level:');
+
+    const ADMIN_PERMISSION = PermissionFlagsBits.Administrator;
+    const useAdmin = permChoice !== 1;
+    const permissionInt = useAdmin ? ADMIN_PERMISSION : PERMISSION_INTEGER;
+
+    if (useAdmin) {
+      success('Using Administrator permissions');
+    } else {
+      success('Using granular permissions');
+      info('Tip: Make sure the bot\'s role is near the top in Server Settings > Roles');
+    }
+
+    ln('');
+
+    const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${appId}&scope=bot+applications.commands&permissions=${permissionInt}`;
 
     if (guilds.length === 0) {
       warn('Bot is not in any servers yet.');
@@ -472,7 +535,12 @@ async function runInit(): Promise<void> {
     } else {
       success(`Bot is in ${guilds.length} server${guilds.length > 1 ? 's' : ''}`);
       ln('');
-      info('Invite URL (for adding to more servers):');
+      if (useAdmin) {
+        info('If the bot was previously invited without Administrator,');
+        info('re-invite with this URL to upgrade permissions:');
+      } else {
+        info('Invite URL (for adding to more servers):');
+      }
       link(inviteUrl);
     }
 
@@ -743,9 +811,14 @@ async function runInit(): Promise<void> {
     }
 
     // ── Done ──
-    ln('');
-    divider();
     await sleep(300);
+    clearScreen();
+
+    // Persistent header — all dots green
+    ln('');
+    const doneDots = Array.from({ length: TOTAL_STEPS }, () => `${c.greenBright}●${c.reset}`).join(' ');
+    ln(`  ${LOGO_MINI} ${DISCORD_MCP_BADGE}  ${doneDots}  ${c.greenBright}Done${c.reset}`);
+    divider();
     ln('');
 
     // Animated completion banner
@@ -798,11 +871,9 @@ async function runInit(): Promise<void> {
 
     box(nextSteps, c.green);
     ln('');
-    ln(`  ${c.gray}Docs${c.reset}   ${c.underline}${c.blueBright}https://github.com/HardHeadHackerHead/discord-mcp${c.reset}`);
     ln(`  ${c.gray}Help${c.reset}   ${c.bold}npx @quadslab.io/discord-mcp check${c.reset}`);
     ln('');
-    ln(`  ${c.dim}Made with ♥ by${c.reset} ${LOGO_MINI}`);
-    ln('');
+    printFooter();
   } finally {
     rl.close();
   }
@@ -952,8 +1023,8 @@ function printVersion(): void {
 
 function printHelp(): void {
   ln(LOGO);
-  ln(`  ${c.bold}Discord MCP Server${c.reset}  ${c.dim}— Manage Discord from Claude Code${c.reset}`);
-  ln(`  ${c.dim}99 tools across 14 categories${c.reset}`);
+  ln(`  ${c.bold}Discord MCP Server${c.reset}  ${c.dim}— Manage Discord from any MCP client${c.reset}`);
+  ln(`  ${c.dim}134 tools across 20 categories${c.reset}`);
   ln('');
   divider();
   ln('');
@@ -983,11 +1054,7 @@ function printHelp(): void {
   ln('');
   divider();
   ln('');
-  ln(`  ${c.dim}Docs${c.reset}   ${c.underline}${c.blueBright}https://github.com/HardHeadHackerHead/discord-mcp${c.reset}`);
-  ln(`  ${c.dim}npm${c.reset}    ${c.underline}${c.blueBright}https://www.npmjs.com/package/@quadslab.io/discord-mcp${c.reset}`);
-  ln('');
-  ln(`  ${c.dim}Made with ♥ by${c.reset} ${LOGO_MINI}`);
-  ln('');
+  printFooter();
 }
 
 // ── Start Command ────────────────────────────────────────────────────

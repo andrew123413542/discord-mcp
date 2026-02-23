@@ -168,6 +168,38 @@ export const roleTools: Tool[] = [
     },
   },
   {
+    name: 'list_role_members',
+    description: 'List all members who have a specific role. Role name is fuzzy-matched.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        role: {
+          type: 'string',
+          description: 'The role name or ID (fuzzy matched)',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of members to return (default: 100)',
+        },
+      },
+      required: ['role'],
+    },
+  },
+  {
+    name: 'list_member_permissions',
+    description: 'Show all permissions a member has server-wide, including their roles.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        member: {
+          type: 'string',
+          description: 'The member\'s username, display name, or user ID (fuzzy matched)',
+        },
+      },
+      required: ['member'],
+    },
+  },
+  {
     name: 'assign_role',
     description: 'Assign a role to a member. Both role and member names are fuzzy-matched.',
     inputSchema: {
@@ -229,6 +261,10 @@ export async function executeRoleTool(name: string, args: Record<string, unknown
       return await modifyRolePermissions(args);
     case 'set_role_icon':
       return await setRoleIcon(args);
+    case 'list_role_members':
+      return await listRoleMembers(args);
+    case 'list_member_permissions':
+      return await listMemberPermissions(args);
     case 'assign_role':
       return await assignRole(args);
     case 'remove_role':
@@ -421,6 +457,65 @@ async function removeRole(args: Record<string, unknown>): Promise<string> {
       id: role.id,
       name: role.name,
     },
+  }, null, 2);
+}
+
+async function listRoleMembers(args: Record<string, unknown>): Promise<string> {
+  const roleIdentifier = args['role'] as string;
+  const limit = (args['limit'] as number | undefined) ?? 100;
+
+  const role = await smartFindRole(roleIdentifier);
+
+  const members = role.members
+    .map(member => ({
+      id: member.id,
+      username: member.user.username,
+      displayName: member.displayName,
+      nickname: member.nickname,
+      isBot: member.user.bot,
+    }))
+    .slice(0, limit);
+
+  return JSON.stringify({
+    success: true,
+    role: {
+      id: role.id,
+      name: role.name,
+    },
+    totalMembers: role.members.size,
+    returned: members.length,
+    members,
+  }, null, 2);
+}
+
+async function listMemberPermissions(args: Record<string, unknown>): Promise<string> {
+  const memberIdentifier = args['member'] as string;
+
+  const member = await smartFindMember(memberIdentifier);
+
+  const permissions = member.permissions.toArray();
+
+  const roles = member.roles.cache
+    .sort((a, b) => b.position - a.position)
+    .map(role => ({
+      id: role.id,
+      name: role.name,
+      color: role.hexColor,
+      position: role.position,
+    }));
+
+  return JSON.stringify({
+    success: true,
+    member: {
+      id: member.id,
+      username: member.user.username,
+      displayName: member.displayName,
+      nickname: member.nickname,
+      isBot: member.user.bot,
+    },
+    permissions,
+    isAdministrator: permissions.includes('Administrator'),
+    roles,
   }, null, 2);
 }
 

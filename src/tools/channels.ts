@@ -322,6 +322,83 @@ export const channelTools: Tool[] = [
     },
   },
   {
+    name: 'check_permissions',
+    description: 'Check what effective permissions a user or role has in a specific channel. Returns the resolved permission array.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'The channel name or ID (fuzzy matched)',
+        },
+        target: {
+          type: 'string',
+          description: 'The role or member name/ID to check permissions for (fuzzy matched)',
+        },
+        targetType: {
+          type: 'string',
+          description: 'Whether the target is a "role" or "member"',
+          enum: ['role', 'member'],
+        },
+      },
+      required: ['channel', 'target', 'targetType'],
+    },
+  },
+  {
+    name: 'copy_channel_permissions',
+    description: 'Copy all permission overwrites from one channel to another, replacing the target channel\'s overwrites.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source: {
+          type: 'string',
+          description: 'The source channel name or ID to copy permissions from (fuzzy matched)',
+        },
+        target: {
+          type: 'string',
+          description: 'The target channel name or ID to apply permissions to (fuzzy matched)',
+        },
+        reason: {
+          type: 'string',
+          description: 'The reason for copying permissions (shown in audit log)',
+        },
+      },
+      required: ['source', 'target'],
+    },
+  },
+  {
+    name: 'set_voice_status',
+    description: 'Set or clear a status message on a voice channel. Requires discord.js v14.15+.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'The voice channel name or ID (fuzzy matched)',
+        },
+        status: {
+          type: 'string',
+          description: 'The status text to display on the voice channel. Use an empty string to clear.',
+        },
+      },
+      required: ['channel', 'status'],
+    },
+  },
+  {
+    name: 'list_voice_members',
+    description: 'List all members currently connected to a voice channel, including their voice state (mute, deaf, streaming, camera).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'The voice channel name or ID (fuzzy matched)',
+        },
+      },
+      required: ['channel'],
+    },
+  },
+  {
     name: 'modify_channel',
     description: 'Modify an existing channel\'s properties such as name, topic, or category. Channel and category names are fuzzy-matched.',
     inputSchema: {
@@ -399,6 +476,14 @@ export async function executeChannelTool(name: string, args: Record<string, unkn
       return await setVoiceRegion(args);
     case 'follow_announcement_channel':
       return await followAnnouncementChannel(args);
+    case 'check_permissions':
+      return await checkPermissions(args);
+    case 'copy_channel_permissions':
+      return await copyChannelPermissions(args);
+    case 'set_voice_status':
+      return await setVoiceStatus(args);
+    case 'list_voice_members':
+      return await listVoiceMembers(args);
     default:
       throw new Error(`Unknown channel tool: ${name}`);
   }
@@ -695,6 +780,23 @@ async function setChannelPermissions(args: Record<string, unknown>): Promise<str
     }
   }
 
+  // If denying @everyone ViewChannel, ensure the bot retains access
+  // so it doesn't lock itself out of the channel
+  const isDenyingEveryoneView =
+    targetId === guild.id &&
+    denyPerms?.includes('ViewChannel');
+
+  if (isDenyingEveryoneView) {
+    const botId = guild.client.user!.id;
+    // Grant bot access before denying @everyone, to avoid self-lockout
+    await channel.permissionOverwrites.edit(botId, {
+      ViewChannel: true,
+      SendMessages: true,
+      ManageChannels: true,
+      ManageRoles: true,
+    }, { reason: 'Bot self-access: preventing lockout when making channel private' });
+  }
+
   await channel.permissionOverwrites.edit(targetId, overwrite, { reason: reason ?? 'Permissions updated via MCP' });
 
   return JSON.stringify({
@@ -704,6 +806,7 @@ async function setChannelPermissions(args: Record<string, unknown>): Promise<str
     target: { id: targetId, name: targetName, type: targetType },
     allowed: allowPerms ?? [],
     denied: denyPerms ?? [],
+    botAccessRetained: isDenyingEveryoneView || undefined,
   }, null, 2);
 }
 
@@ -926,5 +1029,133 @@ async function followAnnouncementChannel(args: Record<string, unknown>): Promise
     message: `#${targetChannel.name} is now following announcements from #${announcementChannel.name}`,
     source: { id: announcementChannel.id, name: announcementChannel.name },
     target: { id: targetChannel.id, name: targetChannel.name },
+  }, null, 2);
+}
+
+async function checkPermissions(args: Record<string, unknown>): Promise<string> {
+  const channelIdentifier = args['channel'] as string;
+  const targetIdentifier = args['target'] as string;
+  const targetType = args['targetType'] as 'role' | 'member';
+
+  const channel = await smartFindChannel(channelIdentifier);
+
+  let targetName: string;
+  let targetId: string;
+  let permissions: string[];
+
+  if (targetType === 'role') {
+    const role = await smartFindRole(targetIdentifier);
+    targetName = `@${role.name}`;
+    targetId = role.id;
+    permissions = channel.permissionsFor(role)?.toArray() ?? [];
+  } else {
+    const member = await smartFindMember(targetIdentifier);
+    targetName = `@${member.displayName}`;
+    targetId = member.id;
+    permissions = channel.permissionsFor(member)?.toArray() ?? [];
+  }
+
+  return JSON.stringify({
+    success: true,
+    channel: { id: channel.id, name: channel.name, type: getChannelTypeName(channel.type) },
+    target: { id: targetId, name: targetName, type: targetType },
+    permissions,
+    permissionCount: permissions.length,
+  }, null, 2);
+}
+
+async function copyChannelPermissions(args: Record<string, unknown>): Promise<string> {
+  const sourceIdentifier = args['source'] as string;
+  const targetIdentifier = args['target'] as string;
+  const reason = args['reason'] as string | undefined;
+
+  const sourceChannel = await smartFindChannel(sourceIdentifier);
+  const targetChannel = await smartFindChannel(targetIdentifier);
+
+  const overwrites = sourceChannel.permissionOverwrites.cache;
+  let copiedCount = 0;
+
+  for (const [, overwrite] of overwrites) {
+    const allowBits = new PermissionsBitField(overwrite.allow);
+    const denyBits = new PermissionsBitField(overwrite.deny);
+
+    // Build a permission overwrite object with allow=true, deny=false
+    const permObj: Record<string, boolean | null> = {};
+    for (const perm of allowBits.toArray()) {
+      permObj[perm] = true;
+    }
+    for (const perm of denyBits.toArray()) {
+      permObj[perm] = false;
+    }
+
+    await targetChannel.permissionOverwrites.edit(overwrite.id, permObj, {
+      type: overwrite.type,
+      reason: reason ?? 'Permissions copied via MCP',
+    } as any);
+    copiedCount++;
+  }
+
+  return JSON.stringify({
+    success: true,
+    message: `Copied ${copiedCount} permission overwrite(s) from #${sourceChannel.name} to #${targetChannel.name}`,
+    source: { id: sourceChannel.id, name: sourceChannel.name },
+    target: { id: targetChannel.id, name: targetChannel.name },
+    overwritesCopied: copiedCount,
+  }, null, 2);
+}
+
+async function setVoiceStatus(args: Record<string, unknown>): Promise<string> {
+  const channelIdentifier = args['channel'] as string;
+  const status = args['status'] as string;
+
+  const channel = await smartFindChannel(channelIdentifier);
+
+  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
+    throw new Error(`"${channel.name}" is not a voice channel`);
+  }
+
+  // setStatus is available on VoiceChannel in discord.js v14.15+
+  // Types may not include it yet, so cast through any
+  await (channel as any).setStatus(status);
+
+  return JSON.stringify({
+    success: true,
+    message: status
+      ? `Voice status for "${channel.name}" set to "${status}"`
+      : `Voice status for "${channel.name}" cleared`,
+    channel: { id: channel.id, name: channel.name },
+    status: status || null,
+  }, null, 2);
+}
+
+async function listVoiceMembers(args: Record<string, unknown>): Promise<string> {
+  const channelIdentifier = args['channel'] as string;
+
+  const channel = await smartFindChannel(channelIdentifier);
+
+  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
+    throw new Error(`"${channel.name}" is not a voice channel`);
+  }
+
+  const voiceChannel = channel as VoiceChannel;
+  const membersList = voiceChannel.members.map(member => ({
+    id: member.id,
+    username: member.user.username,
+    displayName: member.displayName,
+    selfMute: member.voice.selfMute ?? false,
+    selfDeaf: member.voice.selfDeaf ?? false,
+    serverMute: member.voice.serverMute ?? false,
+    serverDeaf: member.voice.serverDeaf ?? false,
+    streaming: member.voice.streaming ?? false,
+    camera: member.voice.selfVideo ?? false,
+  }));
+
+  const membersArray = [...membersList.values()];
+
+  return JSON.stringify({
+    success: true,
+    channel: { id: voiceChannel.id, name: voiceChannel.name, type: getChannelTypeName(voiceChannel.type) },
+    members: membersArray,
+    memberCount: membersArray.length,
   }, null, 2);
 }

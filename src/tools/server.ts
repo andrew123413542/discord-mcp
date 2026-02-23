@@ -1,5 +1,5 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { getGuild } from '../discord-client.js';
+import { getGuild, getClient } from '../discord-client.js';
 import { smartFindChannel, smartFindRole } from './utils.js';
 import { AuditLogEvent, GuildVerificationLevel, GuildDefaultMessageNotifications, TextChannel } from 'discord.js';
 
@@ -235,6 +235,51 @@ export const serverTools: Tool[] = [
       required: ['integrationId'],
     },
   },
+  {
+    name: 'get_invite',
+    description: 'Get details about a specific invite code, including guild info, channel, inviter, usage stats, and expiration.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          description: 'The invite code or full URL (e.g., "abc123" or "discord.gg/abc123")',
+        },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'get_server_icon',
+    description: 'Get the server icon, banner, splash, and discovery splash image URLs.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'set_server_icon',
+    description: 'Set the server icon or banner from a URL.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        icon: {
+          type: 'string',
+          description: 'URL of the image to set as the server icon',
+        },
+        banner: {
+          type: 'string',
+          description: 'URL of the image to set as the server banner',
+        },
+        reason: {
+          type: 'string',
+          description: 'The reason for changing the server images (shown in audit log)',
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 export async function executeServerTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -265,6 +310,12 @@ export async function executeServerTool(name: string, args: Record<string, unkno
       return await listIntegrations();
     case 'delete_integration':
       return await deleteIntegration(args);
+    case 'get_invite':
+      return await getInvite(args);
+    case 'get_server_icon':
+      return await getServerIcon();
+    case 'set_server_icon':
+      return await setServerIcon(args);
     default:
       throw new Error(`Unknown server tool: ${name}`);
   }
@@ -666,5 +717,87 @@ async function deleteIntegration(args: Record<string, unknown>): Promise<string>
   return JSON.stringify({
     success: true,
     message: `Integration "${integrationName}" has been removed`,
+  }, null, 2);
+}
+
+async function getInvite(args: Record<string, unknown>): Promise<string> {
+  const client = getClient();
+  let code = args['code'] as string;
+
+  // Strip URL prefixes if provided
+  code = code.replace(/^https?:\/\/discord\.gg\//, '');
+  code = code.replace(/^discord\.gg\//, '');
+  code = code.replace(/^https?:\/\/discord\.com\/invite\//, '');
+
+  const invite = await client.fetchInvite(code);
+
+  const result = {
+    success: true,
+    code: invite.code,
+    guild: invite.guild ? {
+      name: invite.guild.name,
+      id: invite.guild.id,
+    } : null,
+    channel: invite.channel ? {
+      name: 'name' in invite.channel ? invite.channel.name : null,
+      id: invite.channel.id,
+    } : null,
+    inviter: invite.inviter ? {
+      username: invite.inviter.username,
+      id: invite.inviter.id,
+    } : null,
+    uses: invite.uses ?? null,
+    maxUses: invite.maxUses ?? null,
+    maxAge: invite.maxAge ?? null,
+    temporary: invite.temporary ?? null,
+    createdAt: invite.createdAt?.toISOString() ?? null,
+    expiresAt: invite.expiresAt?.toISOString() ?? null,
+    memberCount: invite.memberCount ?? null,
+    presenceCount: invite.presenceCount ?? null,
+  };
+
+  return JSON.stringify(result, null, 2);
+}
+
+async function getServerIcon(): Promise<string> {
+  const guild = await getGuild();
+
+  const result = {
+    success: true,
+    icon: guild.iconURL({ size: 1024 }) ?? null,
+    banner: guild.bannerURL({ size: 1024 }) ?? null,
+    splash: guild.splashURL({ size: 1024 }) ?? null,
+    discoverySplash: guild.discoverySplashURL({ size: 1024 }) ?? null,
+  };
+
+  return JSON.stringify(result, null, 2);
+}
+
+async function setServerIcon(args: Record<string, unknown>): Promise<string> {
+  const guild = await getGuild();
+  const iconUrl = args['icon'] as string | undefined;
+  const bannerUrl = args['banner'] as string | undefined;
+  const reason = args['reason'] as string | undefined;
+
+  if (!iconUrl && !bannerUrl) {
+    throw new Error('At least one of "icon" or "banner" must be provided.');
+  }
+
+  const updated: string[] = [];
+
+  if (iconUrl) {
+    await guild.setIcon(iconUrl, reason ?? 'Icon updated via MCP');
+    updated.push('icon');
+  }
+
+  if (bannerUrl) {
+    await guild.setBanner(bannerUrl, reason ?? 'Banner updated via MCP');
+    updated.push('banner');
+  }
+
+  return JSON.stringify({
+    success: true,
+    message: `Server images updated successfully`,
+    updated,
   }, null, 2);
 }

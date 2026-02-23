@@ -15,6 +15,12 @@ import { eventTools, executeEventTool } from './events.js';
 import { webhookTools, executeWebhookTool } from './webhooks.js';
 import { forumTools, executeForumTool } from './forums.js';
 import { stageTools, executeStageTool } from './stage.js';
+import { pollTools, executePollTool } from './polls.js';
+import { dmTools, executeDmTool } from './dms.js';
+import { presenceTools, executePresenceTool } from './presence.js';
+import { templateTools, executeTemplateTool } from './templates.js';
+import { commandTools, executeCommandTool } from './commands.js';
+import { onboardingTools, executeOnboardingTool } from './onboarding.js';
 
 /**
  * All available MCP tools for Discord server management
@@ -34,6 +40,12 @@ export const allTools: Tool[] = [
   ...webhookTools,
   ...forumTools,
   ...stageTools,
+  ...pollTools,
+  ...dmTools,
+  ...presenceTools,
+  ...templateTools,
+  ...commandTools,
+  ...onboardingTools,
 ];
 
 /**
@@ -111,6 +123,36 @@ for (const tool of stageTools) {
   toolCategories[tool.name] = 'stage';
 }
 
+// Map poll tools
+for (const tool of pollTools) {
+  toolCategories[tool.name] = 'poll';
+}
+
+// Map DM tools
+for (const tool of dmTools) {
+  toolCategories[tool.name] = 'dm';
+}
+
+// Map presence tools
+for (const tool of presenceTools) {
+  toolCategories[tool.name] = 'presence';
+}
+
+// Map template tools
+for (const tool of templateTools) {
+  toolCategories[tool.name] = 'template';
+}
+
+// Map command tools
+for (const tool of commandTools) {
+  toolCategories[tool.name] = 'command';
+}
+
+// Map onboarding tools
+for (const tool of onboardingTools) {
+  toolCategories[tool.name] = 'onboarding';
+}
+
 /**
  * Execute a tool by name with the given arguments
  */
@@ -150,6 +192,18 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
       return executeForumTool(name, args);
     case 'stage':
       return executeStageTool(name, args);
+    case 'poll':
+      return executePollTool(name, args);
+    case 'dm':
+      return executeDmTool(name, args);
+    case 'presence':
+      return executePresenceTool(name, args);
+    case 'template':
+      return executeTemplateTool(name, args);
+    case 'command':
+      return executeCommandTool(name, args);
+    case 'onboarding':
+      return executeOnboardingTool(name, args);
     default:
       throw new Error(`Unknown tool category: ${category}`);
   }

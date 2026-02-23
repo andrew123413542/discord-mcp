@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-02-22
+
+### Added
+
+- 35 new tools across 6 new categories and 7 existing categories (99 → 134 total)
+- **Polls** (3 tools): send_poll, get_poll_results, end_poll
+- **Direct Messages** (2 tools): send_dm, send_dm_embed
+- **Bot Presence** (2 tools): set_bot_status, get_bot_info
+- **Server Templates** (4 tools): list_templates, create_template, delete_template, sync_template
+- **Application Commands** (4 tools): list_commands, create_command, edit_command, delete_command
+- **Onboarding** (2 tools): get_onboarding, edit_onboarding
+- **Channels** (+4): check_permissions, copy_channel_permissions, set_voice_status, list_voice_members
+- **Members** (+3): search_members, bulk_ban, purge_user_messages
+- **Messages** (+1): send_message_with_file
+- **Roles** (+2): list_role_members, list_member_permissions
+- **Server Admin** (+3): get_invite, get_server_icon, set_server_icon
+- **Threads** (+3): add_thread_member, remove_thread_member, list_thread_members
+- **Events** (+1): get_event_subscribers
+- Administrator permission option in init wizard — avoids role hierarchy issues
+- Bot self-lockout prevention when making channels private (auto-grants bot access before denying @everyone)
+- Enriched error messages for Discord API errors (Missing Access, Missing Permissions) with actionable hints
+
+### Improved
+
+- Error handler now detects Discord error codes (50013, 50001, 50035) and returns fix instructions
+- set_channel_permissions automatically preserves bot access when denying @everyone ViewChannel
+
 ## [1.4.0] - 2026-02-22
 
 ### Added

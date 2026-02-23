@@ -8,7 +8,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import fs from 'fs';
 import { allTools, executeTool } from './tools/index.js';
-import { getServerSummary, getServerCache, withRetry } from './discord-client.js';
+import { getServerSummary, getServerCache, getGuild, withRetry } from './discord-client.js';
 
 // Read version from package.json
 const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
@@ -128,17 +128,46 @@ export function createMCPServer(): Server {
           },
         ],
       };
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const discordCode = error.code ?? error.httpStatus;
+      const hints: string[] = [];
+
+      // Enrich common Discord API errors with actionable hints
+      if (discordCode === 50013 || errorMessage.includes('Missing Access') || errorMessage.includes('Missing Permissions')) {
+        try {
+          const guild = await getGuild();
+          const botMember = guild.members.cache.get(guild.client.user!.id);
+          const botRole = botMember?.roles.highest;
+          if (botRole) {
+            hints.push(`Bot's highest role is "${botRole.name}" (position ${botRole.position}). The bot can only manage roles and members below this position.`);
+          }
+          hints.push('Move the bot\'s role higher in Server Settings > Roles, or re-invite with the correct permissions.');
+          hints.push('Run "npx @quadslab.io/discord-mcp check" to see which permissions are missing.');
+        } catch {
+          hints.push('Ensure the bot\'s role is high enough in the role hierarchy and has the required permissions.');
+        }
+      } else if (discordCode === 50001) {
+        hints.push('The bot cannot access this resource. Check that it has View Channel permission and that the channel is not restricted.');
+      } else if (discordCode === 50035) {
+        hints.push('One or more arguments were invalid. Check the tool parameters and try again.');
+      } else if (discordCode === 30005 || discordCode === 30007 || discordCode === 30010 || discordCode === 30013) {
+        hints.push('A Discord server limit has been reached (max roles, channels, etc.).');
+      }
+
+      const response: Record<string, unknown> = {
+        success: false,
+        error: errorMessage,
+      };
+      if (hints.length > 0) {
+        response['hints'] = hints;
+      }
 
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              success: false,
-              error: errorMessage,
-            }, null, 2),
+            text: JSON.stringify(response, null, 2),
           },
         ],
         isError: true,

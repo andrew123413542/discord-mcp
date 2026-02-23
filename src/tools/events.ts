@@ -109,6 +109,18 @@ export const eventTools: Tool[] = [
       required: ['eventId'],
     },
   },
+  {
+    name: 'get_event_subscribers',
+    description: 'Get the list of users who are interested in a scheduled event',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        event: { type: 'string', description: 'Event name or ID' },
+        limit: { type: 'number', description: 'Max results (default 100)' },
+      },
+      required: ['event'],
+    },
+  },
 ];
 
 export async function executeEventTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -121,6 +133,8 @@ export async function executeEventTool(name: string, args: Record<string, unknow
       return await editEvent(args);
     case 'delete_event':
       return await deleteEvent(args);
+    case 'get_event_subscribers':
+      return await getEventSubscribers(args);
     default:
       throw new Error(`Unknown event tool: ${name}`);
   }
@@ -308,6 +322,45 @@ async function editEvent(args: Record<string, unknown>): Promise<string> {
       status: mapStatusToString(updatedEvent.status),
       entityType: mapEntityTypeToString(updatedEvent.entityType),
     },
+  }, null, 2);
+}
+
+async function getEventSubscribers(args: Record<string, unknown>): Promise<string> {
+  const guild = await getGuild();
+  const eventIdentifier = args['event'] as string;
+  const limit = Math.min(Math.max((args['limit'] as number) || 100, 1), 1000);
+
+  // Fetch all scheduled events
+  const events = await guild.scheduledEvents.fetch();
+
+  // Find by ID or name (case-insensitive)
+  const event = events.find(
+    e => e.id === eventIdentifier || e.name.toLowerCase() === eventIdentifier.toLowerCase()
+  );
+
+  if (!event) {
+    throw new Error(`Scheduled event "${eventIdentifier}" not found. Use list_events to see available events.`);
+  }
+
+  const subscribers = await event.fetchSubscribers({ limit, withMember: true });
+
+  const users = subscribers.map(sub => ({
+    userId: sub.user.id,
+    username: sub.user.username,
+    displayName: sub.member?.displayName ?? sub.user.username,
+    nickname: sub.member?.nickname ?? null,
+    isBot: sub.user.bot,
+  }));
+
+  return JSON.stringify({
+    success: true,
+    event: {
+      id: event.id,
+      name: event.name,
+      status: mapStatusToString(event.status),
+    },
+    subscriberCount: users.length,
+    subscribers: users,
   }, null, 2);
 }
 
