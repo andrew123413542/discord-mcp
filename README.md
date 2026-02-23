@@ -478,6 +478,65 @@ These privileged intents must be enabled in the [Discord Developer Portal](https
 
 ---
 
+## Troubleshooting
+
+Run the health check to diagnose issues:
+
+```bash
+npx @quadslab.io/discord-mcp check
+```
+
+<details>
+<summary><strong>Common issues and fixes</strong></summary>
+
+### "DISCORD_TOKEN is not set"
+
+The MCP server can't find your bot token. Either:
+- Run `npx @quadslab.io/discord-mcp init` to set up automatically
+- Or check that your `.mcp.json` / MCP client config has the `DISCORD_TOKEN` in the `env` block
+
+### "Request with opcode 8 was rate limited"
+
+Discord rate-limited the gateway connection (usually from member caching on large servers). The server retries automatically — if you're still seeing this, wait 30 seconds and try again. This is a Discord-side limit, not a bug.
+
+### "Role @everyone not found"
+
+Fixed in v1.2.2+. Update to the latest version:
+```bash
+npx @quadslab.io/discord-mcp@latest init
+```
+
+### "Missing Access" or "Missing Permissions"
+
+The bot's role doesn't have the required permissions. Either:
+- Re-invite the bot using the URL from `npx @quadslab.io/discord-mcp init` (it includes all permissions)
+- Or go to **Server Settings > Roles** and grant the missing permissions to the bot's role
+- Run `npx @quadslab.io/discord-mcp check` to see exactly which permissions are missing
+
+### Bot can't manage a specific role
+
+Discord enforces role hierarchy — the bot can only manage roles **below** its own highest role. Move the bot's role higher in **Server Settings > Roles**.
+
+### Bot can't read messages
+
+Enable **Message Content Intent** in the [Discord Developer Portal](https://discord.com/developers/applications) > Bot tab.
+
+### "Used disallowed intents"
+
+Enable **Server Members Intent** and **Message Content Intent** in the [Discord Developer Portal](https://discord.com/developers/applications) > Bot tab. Both are required.
+
+### Tools work but are slow
+
+The first tool call after startup may be slow due to caching. Subsequent calls use the cached data and should be instant. If all calls are slow, check your network connection to Discord.
+
+### `.mcp.json` was created in the wrong directory
+
+If you ran `init` from Desktop or Downloads, update to v1.2.3+ which auto-detects this and writes to `~/.claude.json` (global config) instead. Or move the `.mcp.json` file to your project root.
+
+</details>
+
+---
+
 ## Architecture
 
 ```

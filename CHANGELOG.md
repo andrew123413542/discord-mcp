@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-02-22
+
+### Added
+
+- Troubleshooting section in README covering all common errors with fixes
+- Actionable startup error messages that point to `init` or `check` commands
+- More npm keywords for discoverability (cursor, windsurf, claude-desktop, ai-tools)
+- GitHub repo topics for better search visibility
+
+### Improved
+
+- Startup log messages use `[discord-mcp]` prefix for cleaner output
+- Error on missing token/guild now shows the exact command to fix it
+- Failed startup points to `npx @quadslab.io/discord-mcp check` for diagnostics
+
 ## [1.3.0] - 2026-02-22
 
 ### Fixed

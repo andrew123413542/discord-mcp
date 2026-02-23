@@ -28,40 +28,53 @@ export async function main(): Promise<void> {
   const guildId = process.env['DISCORD_GUILD_ID'];
 
   if (!token) {
-    console.error('Error: DISCORD_TOKEN or BOT_TOKEN environment variable is required');
+    console.error('');
+    console.error('  Error: DISCORD_TOKEN is not set.');
+    console.error('');
+    console.error('  Run the setup wizard to configure:');
+    console.error('    npx @quadslab.io/discord-mcp init');
+    console.error('');
+    console.error('  Or set it manually:');
+    console.error('    DISCORD_TOKEN=your-bot-token');
+    console.error('');
     process.exit(1);
   }
 
   if (!guildId) {
-    console.error('Error: DISCORD_GUILD_ID environment variable is required');
+    console.error('');
+    console.error('  Error: DISCORD_GUILD_ID is not set.');
+    console.error('');
+    console.error('  Run the setup wizard to configure:');
+    console.error('    npx @quadslab.io/discord-mcp init');
+    console.error('');
+    console.error('  Or set it manually:');
+    console.error('    DISCORD_GUILD_ID=your-server-id');
+    console.error('');
     process.exit(1);
   }
 
   // Set DISCORD_TOKEN for the discord-client module
   process.env['DISCORD_TOKEN'] = token;
 
-  console.error('Starting Discord MCP server...');
-  console.error(`Guild ID: ${guildId}`);
+  console.error('[discord-mcp] Starting...');
 
   try {
     // Initialize Discord client
-    console.error('Connecting to Discord...');
     const client = await initializeClient();
-    console.error(`Logged in as ${client.user?.tag}`);
+    console.error(`[discord-mcp] Logged in as ${client.user?.tag}`);
 
     // Pre-cache server data for fast lookups
-    console.error('Caching server data...');
     await refreshServerCache();
 
     // Create and start MCP server
     const mcpServer = createMCPServer();
     await startMCPServer(mcpServer);
 
-    console.error('MCP server ready and listening');
+    console.error(`[discord-mcp] Ready — guild ${guildId}`);
 
     // Handle graceful shutdown
     const shutdown = async (signal: string) => {
-      console.error(`\nReceived ${signal}, shutting down...`);
+      console.error(`[discord-mcp] ${signal} received, shutting down...`);
       await destroyClient();
       process.exit(0);
     };
@@ -70,7 +83,12 @@ export async function main(): Promise<void> {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   } catch (error) {
-    console.error('Failed to start MCP server:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[discord-mcp] Failed to start: ${msg}`);
+    console.error('');
+    console.error('  Troubleshoot with:');
+    console.error('    npx @quadslab.io/discord-mcp check');
+    console.error('');
     await destroyClient();
     process.exit(1);
   }
