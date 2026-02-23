@@ -1,12 +1,17 @@
 # @quadslab.io/discord-mcp
 
 [![npm version](https://img.shields.io/npm/v/@quadslab.io/discord-mcp)](https://www.npmjs.com/package/@quadslab.io/discord-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/@quadslab.io/discord-mcp)](https://www.npmjs.com/package/@quadslab.io/discord-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/sjnb8wWGCJ)
+[![GitHub stars](https://img.shields.io/github/stars/HardHeadHackerHead/discord-mcp?style=social)](https://github.com/HardHeadHackerHead/discord-mcp)
 
-**Manage your entire Discord server from Claude Code.** 134 admin tools across 20 categories — roles, channels, members, messages, moderation, forums, stages, webhooks, events, polls, DMs, and more. Just talk to Claude in plain English.
+**Manage your entire Discord server from Claude Code, Claude Desktop, Cursor, or Windsurf.** 134 admin tools across 20 categories — roles, channels, members, messages, moderation, forums, stages, webhooks, events, polls, DMs, and more. Just talk to your AI in plain English.
 
-Built by [QuadsLab.io](https://quadslab.io) with [Discord.js v14](https://discord.js.org/) and the [MCP SDK](https://github.com/modelcontextprotocol/sdk).
+Built by [QuadsLab.io](https://quadslab.io) | [Discord](https://discord.gg/sjnb8wWGCJ) | [npm](https://www.npmjs.com/package/@quadslab.io/discord-mcp)
+
+> If you find this useful, consider giving it a star on GitHub — it helps others discover the project!
 
 ---
 
@@ -21,20 +26,16 @@ npx @quadslab.io/discord-mcp init
 The interactive wizard walks you through everything:
 
 ```
-    ____                  __     __          __
-   / __ \__  ______ _____/ /____/ /   ____ _/ /_
-  / / / / / / / __ `/ __  / ___/ /   / __ `/ __ \
- / /_/ / /_/ / /_/ / /_/ (__  ) /___/ /_/ / /_/ /
- \___\_\__,_/\__,_/\__,_/____/_____/\__,_/_.___/
-                                          .io
+   ██████╗  ██╗   ██╗  █████╗  ██████╗  ███████╗
+  ██╔═══██╗ ██║   ██║ ██╔══██╗ ██╔══██╗ ██╔════╝
+  ██║   ██║ ██║   ██║ ███████║ ██║  ██║ ███████╗
+  ██║▄▄ ██║ ██║   ██║ ██╔══██║ ██║  ██║ ╚════██║
+  ╚██████╔╝ ╚██████╔╝ ██║  ██║ ██████╔╝ ███████║
+   ╚══▀▀═╝   ╚═════╝  ╚═╝  ╚═╝ ╚═════╝  ╚══════╝
+                            QuadsLab.io [discord-mcp]
 
-  ┌────────────────────────────────────────────────────────┐
-  │ Discord MCP Server  —  Interactive Setup               │
-  │ 134 admin tools for managing Discord from Claude Code  │
-  └────────────────────────────────────────────────────────┘
-
-  ● ● ● ○ ○ ○  (3/6)
-  Connecting to Discord
+  ● ● ● ○ ○ ○  Step 3 of 6
+  Connecting to Discord...
 
   ✔ Authenticated as MyBot#1234
     Application ID: 123456789
@@ -652,6 +653,15 @@ If you ran `init` from Desktop or Downloads, update to v1.2.3+ which auto-detect
         ├── commands.ts          # Application commands (4)
         └── onboarding.ts        # Onboarding (2)
 ```
+
+---
+
+## Community
+
+- [Discord Server](https://discord.gg/sjnb8wWGCJ) — get help, share feedback, see what others are building
+- [GitHub Issues](https://github.com/HardHeadHackerHead/discord-mcp/issues) — bug reports and feature requests
+- [GitHub Discussions](https://github.com/HardHeadHackerHead/discord-mcp/discussions) — questions, ideas, and show & tell
+- [QuadsLab.io](https://quadslab.io) — more tools from the team
 
 ---
 
